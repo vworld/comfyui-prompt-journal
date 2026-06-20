@@ -61,7 +61,7 @@ It is:
 * designed around iterative experimentation
 * focused on preserving context
 * focused on minimizing manual bookkeeping
-* tailored for video creation process
+* tailored for video creation process (opinionated hierarchy)
 
 The goal is to make documenting a generation require little more than reviewing the result and recording observations
 that would likely have been made anyway.
