@@ -1,5 +1,8 @@
 from pathlib import Path
 
+from app.cli.ui.banner import print_header, print_kv, print_line
+from app.cli.ui.prompts import confirm_prompt
+
 
 def review_summary(
     output_file: str | Path,
@@ -7,67 +10,29 @@ def review_summary(
     shot: dict,
 ) -> bool:
 
-    print()
-    print(
-        "Review Package Summary"
+    print_header("Review Package Summary")
+
+    print_kv("Output File", Path(output_file).name)
+    print_kv("Workflow Name", metadata.get("workflow_name"))
+    print_kv("Workflow Type", metadata.get("workflow_type"))
+    print_kv("Duration", metadata.get("duration_seconds"))
+
+    print_kv(
+        "Resolution",
+        f"{metadata.get('output_width')}x{metadata.get('output_height')}",
     )
 
-    print(
-        "----------------------"
+    print_kv("Input Count", len(metadata.get("input_assets", [])))
+
+    print_line()
+
+    print_kv("Shot", f"{shot['shot_id']} | {shot['shot_name']}")
+
+    print_kv(
+        "Path",
+        f"{shot['project_name']}/{shot['scene_name']}/{shot['clip_name']}",
     )
 
-    print()
+    print_line()
 
-    print(
-        f"Output File: "
-        f"{Path(output_file).name}"
-    )
-
-    print(
-        f"Workflow Name: "
-        f"{metadata.get('workflow_name')}"
-    )
-
-    print(
-        f"Workflow Type: "
-        f"{metadata.get('workflow_type')}"
-    )
-
-    print(
-        f"Duration: "
-        f"{metadata.get('duration_seconds')}"
-    )
-
-    print(
-        f"Resolution: "
-        f"{metadata.get('output_width')}x"
-        f"{metadata.get('output_height')}"
-    )
-
-    print(
-        f"Input Count: "
-        f"{len(metadata.get('input_assets', []))}"
-    )
-
-    print()
-
-    print(
-        f"Shot: "
-        f"{shot['shot_id']} | "
-        f"{shot['shot_name']}"
-    )
-
-    print(
-        f"Path: "
-        f"{shot['project_name']}/"
-        f"{shot['scene_name']}/"
-        f"{shot['clip_name']}"
-    )
-
-    print()
-
-    answer = input(
-        "Continue? [y/N]: "
-    ).strip().lower()
-
-    return answer == "y"
+    return confirm_prompt("Continue?")

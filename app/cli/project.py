@@ -1,26 +1,19 @@
 from app.db.session import SessionLocal
 from app.models.project import Project
 
+from app.cli.ui.banner import print_header, print_error, print_success
+from app.cli.ui.prompts import text_prompt
+
 
 def create_project():
 
-    print()
-    print("Create Project")
-    print("--------------")
+    print_header("Create Project")
 
-    name = input("Name: ").strip()
+    name = text_prompt("Name", required=True)
 
-    if not name:
-        print("Project name is required")
-        return
+    project_type = text_prompt("Project Type")
 
-    project_type = input(
-        "Project Type: "
-    ).strip()
-
-    description = input(
-        "Description: "
-    ).strip()
+    description = text_prompt("Description")
 
     session = SessionLocal()
 
@@ -29,15 +22,13 @@ def create_project():
         project = Project(
             name=name,
             project_type=project_type,
-            description=description or None
+            description=description or None,
         )
 
         session.add(project)
         session.commit()
 
-        print(
-            f"Created project #{project.id}"
-        )
+        print_success(f"Created project #{project.id}")
 
     finally:
         session.close()

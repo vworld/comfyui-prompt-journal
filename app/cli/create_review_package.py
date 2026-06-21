@@ -1,99 +1,48 @@
 from pathlib import Path
 
-from app.services.metadata.schema_extract import (
-    extract_schema,
-)
-
+from app.services.metadata.schema_extract import extract_schema
 from app.services.review_package.create import (
-    create_review_package as create_review_package_service
+    create_review_package as create_review_package_service,
 )
 
-from app.cli.helpers.shot_picker import (
-    pick_shot,
-)
+from app.cli.helpers.shot_picker import pick_shot
+from app.cli.helpers.review_summary import review_summary
 
-from app.cli.helpers.review_summary import (
-    review_summary,
-)
+from app.cli.ui.banner import print_header, print_kv, print_line, print_error, print_success
+from app.cli.ui.prompts import text_prompt
 
 
 def create_review_package():
-    print()
-    print(
-        "Create Review Package"
-    )
 
-    print(
-        "---------------------"
-    )
+    print_header("Create Review Package")
 
-    print()
+    output_file = text_prompt("Output File", required=True)
 
-    output_file = input(
-        "Output File: "
-    ).strip()
-
-    if not output_file:
-        print(
-            "Output file is required"
-        )
-        return
-
-    output_file = Path(
-        output_file
-    )
+    output_file = Path(output_file)
 
     if not output_file.exists():
-        print(
-            f"File not found: "
-            f"{output_file}"
-        )
-
+        print_error(f"File not found: {output_file}")
         return
 
     try:
-
-        metadata = extract_schema(
-            str(output_file)
-        )
+        metadata = extract_schema(str(output_file))
 
     except Exception as exc:
-
-        print()
-        print(
-            "Metadata extraction "
-            "failed"
-        )
-
-        print(exc)
-
+        print_line()
+        print_error("Metadata extraction failed")
+        print_line(str(exc))
         return
 
-    print()
-    print(
-        "Metadata extracted"
-    )
-
-    print(
-        f"Workflow: "
-        f"{metadata.get('workflow_name')}"
-    )
-
-    print(
-        f"Type: "
-        f"{metadata.get('workflow_type')}"
-    )
-
-    print()
+    print_line()
+    print_line("Metadata extracted")
+    print_kv("Workflow", metadata.get("workflow_name"))
+    print_kv("Type", metadata.get("workflow_type"))
 
     shot = pick_shot()
 
     if not shot:
-        print()
-        print(
-            "Operation cancelled"
-        )
-
+        print_line()
+        print_line("Operation cancelled")
         return
 
     confirmed = review_summary(
@@ -103,41 +52,22 @@ def create_review_package():
     )
 
     if not confirmed:
-        print()
-        print(
-            "Operation cancelled"
-        )
-
+        print_line()
+        print_line("Operation cancelled")
         return
 
     try:
-
-        generation_id = (
-            create_review_package_service(
-                output_file=output_file,
-                shot_id=shot[
-                    "shot_id"
-                ],
-            )
+        generation_id = create_review_package_service(
+            output_file=output_file,
+            shot_id=shot["shot_id"],
         )
 
     except Exception as exc:
-
-        print()
-        print(
-            f"ERROR: {exc}"
-        )
-
+        print_line()
+        print_error(f"ERROR: {exc}")
         raise
 
-    print()
-    print(
-        "Review package created"
-    )
-
-    print(
-        f"Generation ID: "
-        f"{generation_id}"
-    )
-
-    print()
+    print_line()
+    print_success("Review package created")
+    print_kv("Generation ID", generation_id)
+    print_line()

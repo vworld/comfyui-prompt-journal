@@ -1,218 +1,160 @@
-from prompt_toolkit import Application
-from prompt_toolkit.buffer import Buffer
+from prompt_toolkit import PromptSession
+from prompt_toolkit import HTML
+from prompt_toolkit.completion import Completer, Completion
+from prompt_toolkit.shortcuts import CompleteStyle
 from prompt_toolkit.key_binding import KeyBindings
-from prompt_toolkit.layout import Layout
-from prompt_toolkit.layout.containers import (
-    HSplit,
-    Window,
-)
-from prompt_toolkit.layout.controls import (
-    FormattedTextControl,
-    BufferControl,
-)
+from prompt_toolkit.keys import Keys
 
 from app.services.search.shot_search import (
     search_shots,
+    get_shot_by_id,
 )
 
-from app.cli.helpers.hierarchy_builder import (
-    hierarchy_builder,
-)
+from app.cli.helpers.hierarchy_builder import hierarchy_builder
+
+from app.cli.ui.style import CLI_STYLE
+from app.cli.ui.banner import print_header, print_line, print_hint
+
+# Sentinel returned by the prompt session when F2 is pressed, distinct from
+# both a normal completion result (str) and Escape's None.
+_CREATE_HIERARCHY = object()
 
 
-def pick_shot():
-    query = ""
-    selected_index = 0
+class _ShotCompleter(Completer):
+    """Fuzzy-filters shots live as the user types, by delegating the actual
+    matching to search_shots() (token-based LIKE search across shot/clip/
+    scene/project names) rather than reimplementing fuzzy matching here.
 
-    results = search_shots("")
+    Each completion's display text is a rich, multi-field row (matching the
+    original picker's layout); the *inserted* text is the shot name plus a
+    visible "#<id>" suffix, used to resolve the selection back to the full
+    shot dict after the prompt returns.
+    """
 
-    def refresh():
+    def __init__(self):
+        self.lookup: dict[str, dict] = {}
+        self.last_results: list[dict] = []
 
-        nonlocal results
-        nonlocal selected_index
+    def get_completions(self, document, complete_event):
+        query = document.text_before_cursor
 
-        results = search_shots(
-            search_buffer.text
-        )
+        results = search_shots(query)
 
-        if not results:
-            selected_index = 0
-            return
+        self.last_results = results
 
-        selected_index = max(
-            0,
-            min(
-                selected_index,
-                len(results) - 1,
-            )
-        )
-
-    def get_results_text():
-
-        lines = []
-
-        lines.append(
-            "Search Shot"
-        )
-
-        lines.append(
-            "-----------"
-        )
-
-        lines.append("")
-
-        if not results:
-            lines.append(
-                "No matching shots"
-            )
-
-            lines.append("")
-
-            lines.append(
-                "[C] Create Hierarchy"
-            )
-
-            lines.append(
-                "[ESC] Cancel"
-            )
-
-            return "\n".join(lines)
-
-        for index, shot in enumerate(
-                results
-        ):
-            marker = (
-                ">"
-                if index == selected_index
-                else " "
-            )
-
+        for shot in results:
             number = (
                 shot["shot_number"]
-                if shot["shot_number"]
-                   is not None
+                if shot["shot_number"] is not None
                 else "-"
             )
 
-            lines.append(
-                f"{marker} "
-                f"{shot['shot_id']} | "
-                f"{number} | "
-                f"{shot['shot_name']} | "
+            label = f"{shot['shot_name']}  #{shot['shot_id']}"
+
+            self.lookup[label] = shot
+
+            display = (
+                f"{shot['shot_id']} | {number} | {shot['shot_name']}"
+            )
+
+            display_meta = (
                 f"{shot['project_name']}/"
                 f"{shot['scene_name']}/"
                 f"{shot['clip_name']}"
             )
 
-        lines.append("")
-        lines.append(
-            "[ENTER] Select"
-        )
+            yield Completion(
+                text=label,
+                start_position=-len(query),
+                display=display,
+                display_meta=display_meta,
+            )
 
-        lines.append(
-            "[C] Create Hierarchy"
-        )
 
-        lines.append(
-            "[ESC] Cancel"
-        )
-
-        return "\n".join(lines)
-
-    search_buffer = Buffer()
-
-    def on_text_changed(_):
-
-        refresh()
-
-        app.invalidate()
-
-    search_buffer.on_text_changed += (
-        on_text_changed
-    )
-
-    result_window = Window(
-        FormattedTextControl(
-            lambda: get_results_text()
-        ),
-        always_hide_cursor=True,
-    )
+def _build_key_bindings():
 
     kb = KeyBindings()
 
-    @kb.add("down")
-    def _(event):
+    @kb.add("escape", eager=True)
+    def _cancel(event):
+        event.app.exit(result=None)
 
-        nonlocal selected_index
-
-        if results:
-            selected_index = min(
-                selected_index + 1,
-                len(results) - 1,
-            )
-
-            event.app.invalidate()
-
-    @kb.add("up")
-    def _(event):
-
-        nonlocal selected_index
-
-        if results:
-            selected_index = max(
-                selected_index - 1,
-                0,
-            )
-
-            event.app.invalidate()
+    @kb.add(Keys.F2, eager=True)
+    def _create_hierarchy(event):
+        event.app.exit(result=_CREATE_HIERARCHY)
 
     @kb.add("enter")
-    def _(event):
+    def _smart_enter(event):
+        # If exactly one shot matches and the user hasn't explicitly
+        # highlighted a row yet, accept it directly rather than requiring
+        # an extra Up/Down press first. With 0 or 2+ matches, fall through
+        # to normal behaviour (accept whatever's highlighted, or submit the
+        # raw typed text if nothing is).
+        buffer = event.app.current_buffer
 
-        if not results:
-            return
+        state = buffer.complete_state
 
-        event.app.exit(
-            result=results[
-                selected_index
-            ]
-        )
+        if (
+            state is not None
+            and state.current_completion is None
+            and len(state.completions) == 1
+        ):
+            buffer.apply_completion(state.completions[0])
 
-    @kb.add("escape")
-    def _(event):
+        buffer.validate_and_handle()
 
-        event.app.exit(
-            result=None
-        )
+    return kb
 
-    @kb.add("c")
-    def _(event):
 
-        hierarchy_builder()
+def pick_shot():
 
-        refresh()
+    print_header("Search Shot")
 
-        event.app.invalidate()
-
-    layout = Layout(
-        HSplit(
-            [
-                Window(
-                    height=1,
-                    content=BufferControl(
-                        buffer=search_buffer
-                    ),
-                ),
-
-                result_window,
-            ]
-        )
+    print_hint(
+        "Type to filter, \u2191/\u2193 to highlight, [Enter] select \u2022 "
+        "[F2] create hierarchy \u2022 [Esc] cancel"
     )
 
-    app = Application(
-        layout=layout,
+    completer = _ShotCompleter()
+
+    kb = _build_key_bindings()
+
+    session = PromptSession(
+        message=HTML("<prompt>Search:</prompt> "),
+        style=CLI_STYLE,
+        completer=completer,
+        complete_while_typing=True,
+        complete_style=CompleteStyle.MULTI_COLUMN,
         key_bindings=kb,
-        full_screen=False,
     )
 
-    return app.run()
+    while True:
+
+        result = session.prompt()
+
+        if result is None:
+            return None
+
+        if result is _CREATE_HIERARCHY:
+
+            try:
+                shot_id = hierarchy_builder()
+
+            except KeyboardInterrupt:
+                return None
+
+            if shot_id:
+                return get_shot_by_id(shot_id)
+
+            # "Return To Search" (shot_id is None) -> loop back to search
+            continue
+
+        shot = completer.lookup.get(result)
+
+        if shot:
+            return shot
+
+        # Free text that didn't match any completion (e.g. typed then hit
+        # Enter without selecting from the dropdown) -> keep searching with
+        # that text rather than exiting with a nonsense result.
+        continue

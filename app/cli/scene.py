@@ -2,6 +2,9 @@ from app.db.session import SessionLocal
 from app.models.project import Project
 from app.models.scene import Scene
 
+from app.cli.ui.banner import print_header, print_line, print_error, print_success
+from app.cli.ui.prompts import text_prompt, int_prompt
+
 
 def create_scene():
 
@@ -16,51 +19,36 @@ def create_scene():
         )
 
         if not projects:
-            print("No projects found")
+            print_error("No projects found")
             return
 
-        print()
-        print("Projects")
-        print("--------")
+        print_header("Projects")
 
         for project in projects:
-            print(
-                f"{project.id}. {project.name}"
-            )
+            print_line(f"{project.id}. {project.name}")
 
-        project_id = int(
-            input("Project ID: ")
-        )
+        project_id = int_prompt("Project ID", required=True)
 
-        name = input("Name: ").strip()
+        name = text_prompt("Name", required=True)
 
-        number = input(
-            "Scene Number: "
-        ).strip()
+        number = int_prompt("Scene Number", required=False)
 
-        description = input(
-            "Description: "
-        ).strip()
+        description = text_prompt("Description")
 
-        comments = input(
-            "Comments: "
-        ).strip()
+        comments = text_prompt("Comments")
 
         scene = Scene(
             project_id=project_id,
-            number=int(number)
-            if number else None,
+            number=number,
             name=name,
             description=description or None,
-            comments=comments or None
+            comments=comments or None,
         )
 
         session.add(scene)
         session.commit()
 
-        print(
-            f"Created scene #{scene.id}"
-        )
+        print_success(f"Created scene #{scene.id}")
 
     finally:
         session.close()

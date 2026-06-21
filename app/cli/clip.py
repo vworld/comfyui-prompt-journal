@@ -2,6 +2,9 @@ from app.db.session import SessionLocal
 from app.models.scene import Scene
 from app.models.clip import Clip
 
+from app.cli.ui.banner import print_header, print_line, print_error, print_success
+from app.cli.ui.prompts import text_prompt, int_prompt
+
 
 def create_clip():
 
@@ -16,51 +19,36 @@ def create_clip():
         )
 
         if not scenes:
-            print("No scenes found")
+            print_error("No scenes found")
             return
 
-        print()
-        print("Scenes")
-        print("------")
+        print_header("Scenes")
 
         for scene in scenes:
-            print(
-                f"{scene.id}. {scene.name}"
-            )
+            print_line(f"{scene.id}. {scene.name}")
 
-        scene_id = int(
-            input("Scene ID: ")
-        )
+        scene_id = int_prompt("Scene ID", required=True)
 
-        name = input("Name: ").strip()
+        name = text_prompt("Name", required=True)
 
-        number = input(
-            "Clip Number: "
-        ).strip()
+        number = int_prompt("Clip Number", required=False)
 
-        description = input(
-            "Description: "
-        ).strip()
+        description = text_prompt("Description")
 
-        comments = input(
-            "Comments: "
-        ).strip()
+        comments = text_prompt("Comments")
 
         clip = Clip(
             scene_id=scene_id,
-            number=int(number)
-            if number else None,
+            number=number,
             name=name,
             description=description or None,
-            comments=comments or None
+            comments=comments or None,
         )
 
         session.add(clip)
         session.commit()
 
-        print(
-            f"Created clip #{clip.id}"
-        )
+        print_success(f"Created clip #{clip.id}")
 
     finally:
         session.close()

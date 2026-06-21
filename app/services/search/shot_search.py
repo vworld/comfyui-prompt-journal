@@ -92,37 +92,69 @@ def search_shots(
 
         for shot in shots:
             results.append(
-                {
-                    "shot_id":
-                        shot.id,
-
-                    "shot_number":
-                        shot.number,
-
-                    "shot_name":
-                        shot.name,
-
-                    "project_id":
-                        shot.project.id,
-
-                    "project_name":
-                        shot.project.name,
-
-                    "scene_id":
-                        shot.scene.id,
-
-                    "scene_name":
-                        shot.scene.name,
-
-                    "clip_id":
-                        shot.clip.id,
-
-                    "clip_name":
-                        shot.clip.name,
-                }
+                _shot_to_dict(shot)
             )
 
         return results
 
     finally:
         session.close()
+
+
+def get_shot_by_id(
+        shot_id: int,
+) -> dict | None:
+    """Resolve a single shot by primary key into the same dict shape
+    returned by search_shots(). Used after creating a new shot via the
+    hierarchy builder, where we already know the id and don't need to
+    re-run a text search to find it.
+    """
+
+    session = SessionLocal()
+
+    try:
+
+        shot = (
+            session.query(Shot)
+            .filter(Shot.id == shot_id)
+            .first()
+        )
+
+        if shot is None:
+            return None
+
+        return _shot_to_dict(shot)
+
+    finally:
+        session.close()
+
+
+def _shot_to_dict(shot: Shot) -> dict:
+    return {
+        "shot_id":
+            shot.id,
+
+        "shot_number":
+            shot.number,
+
+        "shot_name":
+            shot.name,
+
+        "project_id":
+            shot.project.id,
+
+        "project_name":
+            shot.project.name,
+
+        "scene_id":
+            shot.scene.id,
+
+        "scene_name":
+            shot.scene.name,
+
+        "clip_id":
+            shot.clip.id,
+
+        "clip_name":
+            shot.clip.name,
+    }

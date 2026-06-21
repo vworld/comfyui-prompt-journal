@@ -1,161 +1,67 @@
 from pathlib import Path
 
-from app.services.review_package.validate import (
-    validate_review_package,
-)
-
+from app.services.review_package.validate import validate_review_package
 from app.services.review_package.import_package import (
     import_review_package as import_review_package_service,
 )
 
+from app.cli.ui.banner import print_header, print_kv, print_line, print_error, print_success
+from app.cli.ui.prompts import text_prompt, confirm_prompt
+
 
 def import_review_package():
-    print()
-    print(
-        "Import Review Package"
-    )
 
-    print(
-        "---------------------"
-    )
+    print_header("Import Review Package")
 
-    print()
+    package_dir = text_prompt("Review Package Directory", required=True)
 
-    package_dir = input(
-        "Review Package Directory: "
-    ).strip()
-
-    if not package_dir:
-        print(
-            "Package directory is required"
-        )
-
-        return
-
-    package_dir = Path(
-        package_dir
-    )
+    package_dir = Path(package_dir)
 
     if not package_dir.exists():
-        print(
-            f"Directory not found: "
-            f"{package_dir}"
-        )
-
+        print_error(f"Directory not found: {package_dir}")
         return
 
     try:
-
-        validated = (
-            validate_review_package(
-                package_dir
-            )
-        )
+        validated = validate_review_package(package_dir)
 
     except Exception as exc:
-
-        print()
-        print(
-            "Validation failed"
-        )
-
-        print(exc)
-
+        print_line()
+        print_error("Validation failed")
+        print_line(str(exc))
         return
 
-    manifest = validated[
-        "manifest"
-    ]
+    manifest = validated["manifest"]
+    generation_id = validated["generation_id"]
+    llm_output = validated["llm_output"]
 
-    generation_id = validated[
-        "generation_id"
-    ]
+    print_header("Import Summary")
 
-    llm_output = validated[
-        "llm_output"
-    ]
+    print_kv("Generation ID", generation_id)
+    print_kv("Shot ID", manifest["shot_id"])
 
-    print()
-    print(
-        "Import Summary"
-    )
+    print_line()
 
-    print(
-        "--------------"
-    )
+    print_header("LLM Fields")
 
-    print()
+    print_kv("Intent Length", len(llm_output["cleaned_intent"]))
+    print_kv("Review Length", len(llm_output["cleaned_review"]))
 
-    print(
-        f"Generation ID: "
-        f"{generation_id}"
-    )
+    print_line()
 
-    print(
-        f"Shot ID: "
-        f"{manifest['shot_id']}"
-    )
-
-    print()
-
-    print(
-        "LLM Fields"
-    )
-
-    print(
-        "----------"
-    )
-
-    print(
-        f"Intent Length: "
-        f"{len(llm_output['cleaned_intent'])}"
-    )
-
-    print(
-        f"Review Length: "
-        f"{len(llm_output['cleaned_review'])}"
-    )
-
-    print()
-
-    answer = input(
-        "Continue? [y/N]: "
-    ).strip().lower()
-
-    if answer != "y":
-        print()
-        print(
-            "Operation cancelled"
-        )
-
+    if not confirm_prompt("Continue?"):
+        print_line()
+        print_line("Operation cancelled")
         return
 
     try:
-
-        generation_id = (
-            import_review_package_service(
-                package_dir
-            )
-        )
+        generation_id = import_review_package_service(package_dir)
 
     except Exception as exc:
-
-        print()
-        print(
-            f"ERROR: {exc}"
-        )
-
+        print_line()
+        print_error(f"ERROR: {exc}")
         raise
 
-    print()
-
-    print(
-        "Review package imported"
-    )
-
-    print(
-        f"Generation ID: "
-        f"{generation_id}"
-    )
-
-    print()
+    print_line()
+    print_success("Review package imported")
+    print_kv("Generation ID", generation_id)
+    print_line()
