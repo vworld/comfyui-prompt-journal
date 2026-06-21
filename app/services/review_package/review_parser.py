@@ -24,24 +24,27 @@ def parse_review_file(
             "Missing # Manual Review heading"
         )
 
-    before_review, review_text = (
+    before_intent, after_intent = (
         content.split(
+            intent_marker,
+            maxsplit=1,
+        )
+    )
+
+    intent_text, review_text = (
+        after_intent.split(
             review_marker,
             maxsplit=1,
         )
     )
 
     intent_text = (
-        before_review
-        .replace(
-            intent_marker,
-            "",
-            1,
-        )
-        .strip()
+        intent_text.strip()
     )
 
-    review_text = review_text.strip()
+    review_text = (
+        review_text.strip()
+    )
 
     return {
         "raw_intent": intent_text,

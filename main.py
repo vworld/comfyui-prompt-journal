@@ -47,9 +47,9 @@ def main():
 
     args = parser.parse_args()
 
-    if args.command == "create-db":
+    if args.command == "db-create":
         create_db()
-    elif args.command == "backup-db":
+    elif args.command == "db-backup":
         backup_db()
     elif args.command == "schema-export":
         schema_export()

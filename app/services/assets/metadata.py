@@ -1,9 +1,8 @@
 import json
 from pathlib import Path
-from datetime import datetime
 import mimetypes
 
-from app.services.metadata.exif_source import inspect
+from app.services.metadata.exif_source import inspect, extract_media_probe
 
 
 def extract_asset_metadata(file_path: str | Path) -> dict:
@@ -26,30 +25,18 @@ def extract_asset_metadata(file_path: str | Path) -> dict:
         "metadata_json": None,
     }
 
-    try:
-        raw = inspect(path)
 
-        result["metadata_json"] = json.dumps(raw, ensuure_ascii=False)
+    raw = inspect(path)
 
-        meta = raw.get("metadata", {})
+    result["metadata_json"] = json.dumps(raw, ensure_ascii=False)
 
-        result["width"] = (
-                meta.get("Track1:ImageWidth")
-                or meta.get("PNG:ImageWidth")
-                or meta.get("File:ImageWidth")
-        )
+    meta = raw.get("metadata", {})
 
-        result["height"] = (
-                meta.get("Track1:ImageHeight")
-                or meta.get("PNG:ImageHeight")
-                or meta.get("File:ImageHeight")
-        )
+    probe = extract_media_probe(meta)
 
-        result["fps"] = meta.get(
-            "Track1:VideoFrameRate"
-        )
-
-    except Exception:
-        pass
+    result["width"] = probe.get("width")
+    result["height"] = probe.get("height")
+    result["fps"] = probe.get("fps")
+    result["duration_seconds"] = probe.get("duration_seconds")
 
     return result

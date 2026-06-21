@@ -1,3 +1,4 @@
+import re
 import json
 from pathlib import Path
 
@@ -66,9 +67,40 @@ def validate_review_package(
         )
     )
 
+    review_content = (
+            package_dir
+            / "review.md"
+    ).read_text(
+        encoding="utf-8"
+    )
+
+    match = re.search(
+        r"Generation ID:\s*(\d+)",
+        review_content,
+    )
+    if not match:
+        raise ValueError(
+            "Missing generation ID "
+            "in review.md"
+        )
+    review_generation_id = int(
+        match.group(1)
+    )
+
+
     generation_id = manifest[
         "generation_id"
     ]
+
+    if (
+            review_generation_id
+            != generation_id
+    ):
+        raise ValueError(
+            "Generation ID mismatch "
+            "between manifest "
+            "and review.md"
+        )
 
     if (
         llm_context[

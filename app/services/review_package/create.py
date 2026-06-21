@@ -544,7 +544,7 @@ def create_review_package(
         )
 
         write_review_template(
-            review_dir
+            review_dir, generation
         )
 
         write_warnings(
