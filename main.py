@@ -1,7 +1,7 @@
 # main.py
 
 from app.cli.menu import start_cli
-from app.cli.misc_utils.db import create_db, backup_db, schema_export
+from app.cli.misc_utils.db import backup_db, create_db, schema_export
 from app.cli.misc_utils.metadata_inspect import inspect_file_metadata
 
 """

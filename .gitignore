@@ -1,3 +1,6 @@
 /.env
 /data/
 /tmp/
+.venv/
+.history/
+*/**/__pycache__/
