@@ -1,0 +1,65 @@
+@import "tailwindcss";
+
+@theme {
+  /* Surfaces */
+  --color-bg: #15171a;
+  --color-panel: #1d2024;
+  --color-panel-raised: #262a30;
+  --color-border: #343941;
+  --color-border-strong: #454c56;
+
+  /* Text — primary is now the readable default per design review.
+     "muted"/"faint" are reserved for genuine hints, not for content
+     meant to be read carefully (prompts, settings, labels). */
+  --color-text: #f1f2f4;
+  --color-text-muted: #aab0b9;
+  --color-text-faint: #6b7280;
+
+  /* Accent / semantic */
+  --color-accent: #5eb1bf;
+  --color-accent-dim: #3d7882;
+  --color-attention: #d9a04b;
+
+  /* Solid badge colors — each field type gets one fixed, readable-contrast
+     badge color for muscle memory (not a muted dot next to gray text). */
+  --color-badge-resolution-bg: #2c4a73;
+  --color-badge-resolution-text: #bcd6ff;
+  --color-badge-fps-bg: #2c5c3e;
+  --color-badge-fps-text: #b9eccd;
+  --color-badge-duration-bg: #5c2c73;
+  --color-badge-duration-text: #e8c4ff;
+  --color-badge-steps-bg: #7a5a1f;
+  --color-badge-steps-text: #ffe3a8;
+  --color-badge-cfg-bg: #732c3a;
+  --color-badge-cfg-text: #ffc4cd;
+  --color-badge-sampler-bg: #3a3f47;
+  --color-badge-sampler-text: #dfe2e6;
+
+  /* Type */
+  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+  --font-sans: 'Inter', system-ui, sans-serif;
+
+  /* Layout */
+  --max-width-console: 1560px;
+}
+
+html, body, #root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+button {
+  font-family: inherit;
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 1px;
+}

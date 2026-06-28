@@ -1,0 +1,127 @@
+So what we need to do with this page is:
+
+
+
+1. Create "project to shot hierarchy" in the Select Shot modal.
+
+2. Add keyboard shortcuts for the major actions. (TODO: list)
+
+3. When a shot is selected we update DB immediately - ie send an update request. There is a workflow after that - will explain in the end
+
+4. Add thumbnails if the url is available, else default icon
+
+5. In the Action footer right, we have the text "⌥S select shot · ⌘↵ submit" (what purpose?). Remove them and add a ShotGenerationBrowser component. Will explain what it is with explanation about 3
+
+6. A place to show added_on date and time
+
+7. A global search box. Behavior requires a new API and can be done later. We just need to find a place for it.
+
+8. The Submit Review button is disabled throughout, until all data is available. This UI is not telling the user what he must edit - in the sense it is not a typical form. So I think we should enable it and show the error message, so the user know what else must be done
+
+9. All API errors and messages can be shown as a Toast or dialogue. If using Toast, we must use one of mature libraries - if you do not have a default choice, let me choose.
+
+
+
+## Notes on long term plan
+
+This app would be packed into a desktop application using electron or tauri. So we should keep that in mind. Once that happens, we would want most of the settings to be configurable, things like shortcut keys or other things that you think may help the workflow. For now we can identify those and centralize them in a preferences object, so migration, when needed is straight forward.
+
+
+
+## Select Shot Workflow
+
+- propose adding shot - small button on the right of the search box
+
+When the same is selected we can open the UI in the same modal, where search results are supposed to be shown. If this gets difficult to integrate a separate modal is also fine.
+
+The options will be:
+
+- select project search or add
+
+- select scene - search or add
+
+- select clip - search or add
+
+- select shot - add
+
+Now we can decide on a proper UX first - whether a fuzzy search like the one for shot is better to select the entire hierarchy or if we should do it in 4 steps. The UI changes based on that. Primarily if we do fuzzy hierarchy search (upto clip) then we may need all 4 add btns/links. Other than add project, scene, etc, API end-points have to be added and will be done once a final decision is reached.
+
+
+
+## What happens when a shot is selected?
+
+We immediately
+
+- send an update request
+
+- display the hierarchy, as discussed. Although do keep in mind the names may be long and we may need to cap the max chars per level and show the entire thing in a tooltip/popover.
+
+- Enable the
+
+- fetch more details from the backed using:
+
+  -  GET /api/shots/{shot_id}/generations/count
+
+  - GET /api/shots/{shot_id}/generations (actual request can be made when history button is clicked)
+
+
+
+This information is used to display ShotGenerationBrowser.
+
+
+
+## ShotGenerationBrowser
+
+Display ASCII artefacts
+
+◀  No Shot Selected  ▶  │  History ▲
+
+◀  7 / 7 Generations  ▶  │  History ▲
+
+
+
+On clicking History button a popover opens above the button showing details about all generations related to the shot
+
+
+
+┌─────────────────────┐
+
+│   #1 lake_reveal_v1.mp4 (Jun 28, 13:41)                │
+
+│ ○ #2 lake_reveal_v2.mp4 (Jun 28, 13:57)            │
+
+│   #3 lake_reveal_v3.mp4 (Jun 28, 14:12)               │
+
+│ ▶ #4 lake_reveal_v4.mp4 (Jun 28, 14:32)           │
+
+└─────────────────────┘
+
+
+
+where the format is
+
+#<attempt_num> <output_file_name> (<added_on>)
+
+- attempt_num being the index of the gen after sorting by added_on, asc
+
+
+
+Icons being
+
+▶ = currently loaded generation
+
+○ = pending review
+
+(blank) = reviewed generation
+
+
+
+Now some API return values have to change and some APIs have to be added, which I would do, once we approve the rest.
+
+
+
+
+
+
+
+Note: Any leftover TODO is for me to fill or for us to discuss later. They have been skipped for brevity. This is getting long anyway
