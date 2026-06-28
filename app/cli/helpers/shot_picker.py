@@ -1,19 +1,17 @@
-from prompt_toolkit import PromptSession
-from prompt_toolkit import HTML
+from prompt_toolkit import HTML, PromptSession
 from prompt_toolkit.completion import Completer, Completion
-from prompt_toolkit.shortcuts import CompleteStyle
 from prompt_toolkit.key_binding import KeyBindings
 from prompt_toolkit.keys import Keys
-
-from app.services.search.shot_search import (
-    search_shots,
-    get_shot_by_id,
-)
+from prompt_toolkit.shortcuts import CompleteStyle
 
 from app.cli.helpers.hierarchy_builder import hierarchy_builder
-
+from app.cli.ui.banner import print_header, print_hint, print_line
 from app.cli.ui.style import CLI_STYLE
-from app.cli.ui.banner import print_header, print_line, print_hint
+from app.schemas.api.shot import ShotSearchResultDict
+from app.services.search.shot_search import (
+    get_shot_by_id,
+    search_shots,
+)
 
 # Sentinel returned by the prompt session when F2 is pressed, distinct from
 # both a normal completion result (str) and Escape's None.
@@ -33,7 +31,7 @@ class _ShotCompleter(Completer):
 
     def __init__(self):
         self.lookup: dict[str, dict] = {}
-        self.last_results: list[dict] = []
+        self.last_results: list[ShotSearchResultDict] = []
 
     def get_completions(self, document, complete_event):
         query = document.text_before_cursor

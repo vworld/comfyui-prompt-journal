@@ -1,8 +1,7 @@
-from prompt_toolkit import PromptSession
-from prompt_toolkit import HTML
+from prompt_toolkit import HTML, PromptSession
 
-from app.cli.ui.style import CLI_STYLE
 from app.cli.ui.banner import print_error
+from app.cli.ui.style import CLI_STYLE
 
 
 def _make_message(label: str) -> HTML:

@@ -1,7 +1,6 @@
 from html import escape
 
-from prompt_toolkit import print_formatted_text
-from prompt_toolkit import HTML
+from prompt_toolkit import HTML, print_formatted_text
 
 from app.cli.ui.style import CLI_STYLE
 

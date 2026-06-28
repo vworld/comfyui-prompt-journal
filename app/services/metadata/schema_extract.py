@@ -21,12 +21,21 @@ it's there so the rules are auditable rather than a black box.
 
 from __future__ import annotations
 
-from typing import Any
-from pathlib import Path
+from typing import TYPE_CHECKING, Any
 
-from .exif_source import parse as parse_exif_dump, inspect
+from app.schemas.types.metadata import InputAssetInfo, InputAssetInfoWithMimeType
+from app.services.assets.utils import resolve_input_asset_path
+from app.services.metadata import raw_metadata
+
+from .exif_source import inspect
+from .exif_source import parse as parse_exif_dump
+from .fold import AmbiguousBranch, NodeRef
 from .semantic import SemanticExtractor
-from .fold import NodeRef, AmbiguousBranch
+
+if TYPE_CHECKING:
+    from pathlib import Path
+
+    from app.schemas.types.metadata import ExtractedSchema, ExtractionError
 
 
 def _clean(value: Any) -> Any:
@@ -36,13 +45,43 @@ def _clean(value: Any) -> Any:
     if isinstance(value, (NodeRef, AmbiguousBranch)):
         return value.to_dict()
     if isinstance(value, dict):
-        return {k: _clean(v) for k, v in value.items()}
+        return {
+            k: _clean(v) for k, v in value.items()
+        }  # pyright: ignore[reportUnknownVariableType]
     if isinstance(value, list):
-        return [_clean(v) for v in value]
+        return [_clean(v) for v in value]  # pyright: ignore[reportUnknownVariableType]
     return value
 
 
-def extract_schema(file_path: str | Path) -> dict:
+def extract_schema_for_asset(file_path: str | Path):
+    """
+    Extracts the schema for files that do not have comfyUI metadata.
+    Uses only exif tool and returns a parsed response suitable
+    to ingest in the asset table.
+    """
+
+    path = Path(file_path)
+    stat = path.stat()
+
+
+def enhance_input_asset(
+    input_asset: InputAssetInfo,
+) -> InputAssetInfoWithMimeType | None:
+    """"""
+    input_file_name = input_asset.get("value")
+    if not input_file_name:
+        return None
+    input_file_path = resolve_input_asset_path(input_file_name)
+
+    metadata = inspect(input_file_path)
+    mime_type = metadata.get("File:MIMEType")
+    return {
+        **input_asset,
+        mime_type: mime_type,
+    }
+
+
+def extract_schema(file_path: str | Path) -> ExtractedSchema | ExtractionError:
     raw = inspect(file_path)
     parsed = parse_exif_dump(raw)
     warnings = list(parsed["warnings"])
@@ -56,7 +95,9 @@ def extract_schema(file_path: str | Path) -> dict:
         }
 
     try:
-        sx = SemanticExtractor(parsed["prompt"], parsed["workflow"], parsed["media_probe"])
+        sx = SemanticExtractor(
+            parsed["prompt"], parsed["workflow"], parsed["media_probe"]
+        )
     except Exception as e:
         return {
             "source_file": parsed["source_file"],
@@ -80,48 +121,43 @@ def extract_schema(file_path: str | Path) -> dict:
 
     probe = parsed["media_probe"]
 
-    result = {
+    result: ExtractedSchema = {
         "workflow_name": wname,
         "workflow_id": wid,
         "workflow_type": wtype["workflow_type"],
-
         "prompt": pos,
         "negative_prompt": neg,
         "all_prompts": prompts,
-
         "requested_width": dims["requested_width"],
         "requested_height": dims["requested_height"],
         "output_width": probe.get("width"),
         "output_height": probe.get("height"),
-
         "fps": probe.get("fps"),
         "frame_count": frames["frame_count"],
         "duration_seconds": probe.get("duration_seconds"),
-
         "seed": sampling["seed"],
         "sampler": sampling["sampler"],
         "scheduler": sampling["scheduler"],
         "steps": sampling["steps"],
         "cfg": sampling["cfg"],
-
-        "input_assets": assets,
+        "input_assets": assets,  # FIXME:
         "primary_model": primary_model,
         "models": models,
-    }
-
-    result["_debug"] = {
-        "source_file": parsed["source_file"],
-        "output_media_type": sx.output_media_type,
-        "output_nodes": sx.output_nodes,
-        "primary_sampler_node": primary_sampler,
-        "workflow_type_basis": wtype["basis"],
-        "workflow_name_source": wname_source,
-        "requested_dims_source": dims["source"],
-        "frame_count_source": frames["source"],
-        "has_audio_track_in_output_file": probe.get("has_audio"),
-        "live_node_count": len(sx.live_ids),
-        "total_node_count": len(sx.ev.nodes),
-        "warnings": warnings,
+        "_debug": {
+            "source_file": parsed["source_file"],
+            "output_media_type": sx.output_media_type,
+            "output_nodes": sx.output_nodes,
+            "primary_sampler_node": primary_sampler,
+            "workflow_type_basis": wtype["basis"],
+            "workflow_name_source": wname_source,
+            "requested_dims_source": dims["source"],
+            "frame_count_source": frames["source"],
+            "has_audio_track_in_output_file": probe.get("has_audio"),
+            "live_node_count": len(sx.live_ids),
+            "total_node_count": len(sx.ev.nodes),
+            "warnings": warnings,
+        },
+        "_raw": None,
     }
 
     cleaned = _clean(result)
@@ -131,9 +167,11 @@ def extract_schema(file_path: str | Path) -> dict:
 
 
 if __name__ == "__main__":
-    import sys
     import json
+    import sys
 
     for path in sys.argv[1:]:
         print(f"\n===== {path} =====")
-        print(json.dumps(extract_schema(path), indent=2, ensure_ascii=False, default=str))
+        print(
+            json.dumps(extract_schema(path), indent=2, ensure_ascii=False, default=str)
+        )

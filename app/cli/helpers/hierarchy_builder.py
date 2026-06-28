@@ -1,8 +1,7 @@
+from app.cli.clip import create_clip
 from app.cli.project import create_project
 from app.cli.scene import create_scene
-from app.cli.clip import create_clip
 from app.cli.shot import create_shot
-
 from app.cli.ui.banner import print_header, print_line
 from app.cli.ui.prompts import choice_prompt
 

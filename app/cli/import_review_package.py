@@ -1,12 +1,17 @@
 from pathlib import Path
 
-from app.services.review_package.validate import validate_review_package
+from app.cli.ui.banner import (
+    print_error,
+    print_header,
+    print_kv,
+    print_line,
+    print_success,
+)
+from app.cli.ui.prompts import confirm_prompt, text_prompt
 from app.services.review_package.import_package import (
     import_review_package as import_review_package_service,
 )
-
-from app.cli.ui.banner import print_header, print_kv, print_line, print_error, print_success
-from app.cli.ui.prompts import text_prompt, confirm_prompt
+from app.services.review_package.validate import validate_review_package
 
 
 def import_review_package():

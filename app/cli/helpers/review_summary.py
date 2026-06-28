@@ -2,11 +2,12 @@ from pathlib import Path
 
 from app.cli.ui.banner import print_header, print_kv, print_line
 from app.cli.ui.prompts import confirm_prompt
+from app.schemas.types.metadata import ExtractedSchema
 
 
 def review_summary(
     output_file: str | Path,
-    metadata: dict,
+    metadata: ExtractedSchema,
     shot: dict,
 ) -> bool:
 

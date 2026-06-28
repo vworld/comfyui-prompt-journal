@@ -1,7 +1,7 @@
-from pathlib import Path
 import json
 import sys
 from datetime import datetime
+from pathlib import Path
 
 from app.config.config import CONFIG
 from app.services.metadata.schema_extract import extract_schema
@@ -41,7 +41,7 @@ def process_file(file_path: Path, output_dir: Path, print_json: bool = False):
         if print_json:
             print(json.dumps(result, indent=2, ensure_ascii=False))
 
-        return True
+        return output_file
 
     except Exception as e:
         print(f"ERROR: {file_path.name}: {e}")
@@ -52,7 +52,8 @@ def process_directory(directory: Path):
     output_dir = get_output_dir(directory)
 
     files = [
-        p for p in directory.iterdir()
+        p
+        for p in directory.iterdir()
         if p.is_file() and p.suffix.lower() in SUPPORTED_EXTENSIONS
     ]
 
@@ -74,13 +75,14 @@ def process_directory(directory: Path):
     print(f"Output: {output_dir}")
 
 
-def inspect_file_metadata():
-    if len(sys.argv) != 2:
-        print("Usage:")
-        print("python -m app.cli.metadata <file_or_directory>")
-        sys.exit(1)
+def inspect_file_metadata(file_path: str):
+    # print(sys.argv)
+    # if len(sys.argv) != 2:
+    #     print("Usage:")
+    #     print("python -m app.cli.metadata <file_or_directory>")
+    #     sys.exit(1)
 
-    target = Path(sys.argv[1])
+    target = Path(file_path)
 
     if not target.exists():
         print(f"Path not found: {target}")
@@ -89,14 +91,14 @@ def inspect_file_metadata():
     if target.is_file():
         output_dir = get_output_dir(target)
 
-        process_file(
+        saved_to = process_file(
             file_path=target,
             output_dir=output_dir,
             print_json=True,
         )
 
         print()
-        print(f"Saved to: {output_dir / f'{target.stem}.json'}")
+        print(f"Saved to: {saved_to}")
 
     else:
         process_directory(target)

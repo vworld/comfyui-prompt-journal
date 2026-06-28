@@ -1,3 +1,12 @@
+# pyright: reportUnknownMemberType=false
+# pyright: reportUnknownVariableType=false
+# pyright: reportUnknownArgumentType=false
+# pyright: reportUnknownParameterType=false
+# pyright: reportUnknownLambdaType=false
+# pyright: reportMissingTypeArgument=false
+# pyright: reportOptionalMemberAccess=false
+
+
 """
 semantic.py
 
@@ -19,9 +28,24 @@ more workflow varieties.
 from __future__ import annotations
 
 import re
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from .fold import GraphEvaluator, NodeRef, AmbiguousBranch
+from .fold import AmbiguousBranch, GraphEvaluator, NodeRef
+
+if TYPE_CHECKING:
+    from app.schemas.types.metadata import (
+        FrameCountInfo,
+        InputAssetInfo,
+        JSONDict,
+        MediaProbe,
+        ModelUsedInfo,
+        PromptUsed,
+        RequestedDimensions,
+        SamplingParams,
+        StrengthInfo,
+        WorkflowTypeInfo,
+    )
+
 
 # ---------------------------------------------------------------------------
 # Pattern tables -- the parts most likely to need extending as you encounter
@@ -29,16 +53,22 @@ from .fold import GraphEvaluator, NodeRef, AmbiguousBranch
 # ---------------------------------------------------------------------------
 
 OUTPUT_NODE_PATTERNS = {
-    "image": re.compile(r"^(SaveImage|SaveImageWebsocket|PreviewImage|SaveAnimatedPNG|SaveAnimatedWEBP)$"),
-    "video": re.compile(r"(SaveVideo|VHS_VideoCombine|VHS_SaveVideo|CreateVideo)$", re.I),
+    "image": re.compile(
+        r"^(SaveImage|SaveImageWebsocket|PreviewImage|SaveAnimatedPNG|SaveAnimatedWEBP)$"
+    ),
+    "video": re.compile(
+        r"(SaveVideo|VHS_VideoCombine|VHS_SaveVideo|CreateVideo)$", re.I
+    ),
     "audio": re.compile(r"(SaveAudio)$", re.I),
 }
 
-SAMPLER_NODE_PATTERN = re.compile(r"^(KSampler|KSamplerAdvanced|SamplerCustom|SamplerCustomAdvanced)$")
+SAMPLER_NODE_PATTERN = re.compile(
+    r"^(KSampler|KSamplerAdvanced|SamplerCustom|SamplerCustomAdvanced)$"
+)
 TEXT_ENCODE_PATTERN = re.compile(r"TextEncode\b", re.I)
 ASSET_SOURCE_PATTERN = re.compile(r"^Load(Image|Audio|Video)|LoadVideo", re.I)
 
-MODEL_ROLE_RULES: list[tuple[re.Pattern, str]] = [
+MODEL_ROLE_RULES: list[tuple[re.Pattern[str], str]] = [
     (re.compile(r"lora", re.I), "lora"),
     (re.compile(r"controlnet", re.I), "controlnet"),
     (re.compile(r"ipadapter", re.I), "ipadapter"),
@@ -46,16 +76,22 @@ MODEL_ROLE_RULES: list[tuple[re.Pattern, str]] = [
     (re.compile(r"upscal", re.I), "latent_upscaler"),
     (re.compile(r"vae", re.I), "vae"),
     (re.compile(r"clip|text_?encoder", re.I), "text_encoder"),
-    (re.compile(r"checkpoint|unet|diffusionmodel|gguf", re.I), "primary_generation_model"),
+    (
+        re.compile(r"checkpoint|unet|diffusionmodel|gguf", re.I),
+        "primary_generation_model",
+    ),
 ]
 
 # Priority order matters: first matching pattern wins (most specific first).
 # Word boundaries (\b) matter here: e.g. a slot named "video_latent" must
 # NOT match the "video" role just because it contains that substring.
-ASSET_ROLE_RULES: list[tuple[re.Pattern, str]] = [
+ASSET_ROLE_RULES: list[tuple[re.Pattern[str], str]] = [
     (re.compile(r"\bfirst.?frame\b|\bstart.?image\b", re.I), "first_frame"),
     (re.compile(r"\blast.?frame\b|\bend.?image\b", re.I), "last_frame"),
-    (re.compile(r"\breference\b|\bref.?image\b|\bstyle.?image\b", re.I), "reference_image"),
+    (
+        re.compile(r"\breference\b|\bref.?image\b|\bstyle.?image\b", re.I),
+        "reference_image",
+    ),
     (re.compile(r"\bdepth\b", re.I), "depth_map"),
     (re.compile(r"\bcontrol\b", re.I), "control_image"),
     (re.compile(r"\bmask\b", re.I), "mask"),
@@ -64,7 +100,7 @@ ASSET_ROLE_RULES: list[tuple[re.Pattern, str]] = [
     (re.compile(r"\bimage\b", re.I), "input_image"),
 ]
 
-PROMPT_ROLE_RULES: list[tuple[re.Pattern, str]] = [
+PROMPT_ROLE_RULES: list[tuple[re.Pattern[str], str]] = [
     (re.compile(r"\bnegative\b", re.I), "negative"),
     (re.compile(r"\bpositive\b", re.I), "positive"),
 ]
@@ -78,7 +114,8 @@ LATENT_ROOT_PATTERN = re.compile(r"^Empty.*Latent|LatentVideo$|ImageToVideo$", r
 # legitimately pass through the same merge node -- get conflated and look
 # identical from that point on.
 FORWARD_TRACE_STOP_PATTERN = re.compile(
-    r"Sampler|Guider|Conditioning|ToVideo$|CreateVideo|SaveVideo|SaveImage|SaveAudio|VAEDecode", re.I
+    r"Sampler|Guider|Conditioning|ToVideo$|CreateVideo|SaveVideo|SaveImage|SaveAudio|VAEDecode",
+    re.I,
 )
 
 
@@ -91,7 +128,9 @@ def _model_role(class_type: str) -> str | None:
     return "other"
 
 
-def _best_match(slot_names: list[str], rules: list[tuple[re.Pattern, str]], default: str) -> str:
+def _best_match(
+    slot_names: list[str], rules: list[tuple[re.Pattern[str], str]], default: str
+) -> str:
     best_rank = len(rules)
     best_role = default
     for slot in slot_names:
@@ -103,7 +142,12 @@ def _best_match(slot_names: list[str], rules: list[tuple[re.Pattern, str]], defa
 
 
 class SemanticExtractor:
-    def __init__(self, prompt_graph: dict, workflow_blob: dict | None, media_probe: dict):
+    def __init__(
+        self,
+        prompt_graph: JSONDict,
+        workflow_blob: JSONDict | None,
+        media_probe: MediaProbe,
+    ):
         self.ev = GraphEvaluator(prompt_graph)
         self.workflow_blob = workflow_blob or {}
         self.media_probe = media_probe or {}
@@ -111,7 +155,11 @@ class SemanticExtractor:
 
         self.output_nodes = self._find_output_nodes()
         self.output_media_type = self._infer_output_media_type()
-        self.live_ids = self.ev.live_node_ids([nid for nid, _ in self.output_nodes]) if self.output_nodes else set(self.ev.nodes.keys())
+        self.live_ids = (
+            self.ev.live_node_ids([nid for nid, _ in self.output_nodes])
+            if self.output_nodes
+            else set(self.ev.nodes.keys())
+        )
         self.subgraph_map = self._build_subgraph_map()
 
     # ---------- output node / media type ----------
@@ -185,9 +233,15 @@ class SemanticExtractor:
     # ---------- sampler stage detection ----------
 
     def _sampler_nodes(self) -> list[str]:
-        return [nid for nid in self.live_ids if SAMPLER_NODE_PATTERN.match(self.ev.class_type(nid) or "")]
+        return [
+            nid
+            for nid in self.live_ids
+            if SAMPLER_NODE_PATTERN.match(self.ev.class_type(nid) or "")
+        ]
 
-    def _traces_through_sampler(self, start_id: str, _visited: set | None = None) -> bool:
+    def _traces_through_sampler(
+        self, start_id: str, _visited: set | None = None
+    ) -> bool:
         visited = _visited if _visited is not None else set()
         if start_id in visited or start_id not in self.live_ids:
             return False
@@ -196,7 +250,9 @@ class SemanticExtractor:
             return True
         node = self.ev.get(start_id)
         for val in (node.get("inputs") or {}).values():
-            if self.ev.is_link(val) and self._traces_through_sampler(str(val[0]), visited):
+            if self.ev.is_link(val) and self._traces_through_sampler(
+                str(val[0]), visited
+            ):
                 return True
         return False
 
@@ -207,24 +263,37 @@ class SemanticExtractor:
         roots = []
         for s in samplers:
             node = self.ev.get(s)
+            if node is None:
+                continue
+
             latent_in = (node.get("inputs") or {}).get("latent_image")
-            if self.ev.is_link(latent_in):
-                if not self._traces_through_sampler(str(latent_in[0])):
+            if latent_in is not None and self.ev.is_link(latent_in):
+                if not self._traces_through_sampler(
+                    str(latent_in[0])
+                ):  # pyright: ignore[reportOptionalSubscript]
                     roots.append(s)
             else:
                 roots.append(s)  # no latent_image link at all -> trivially a root
         if roots:
             return roots[0]
-        self.warnings.append("All sampler nodes appear chained; picking the first as primary")
+        self.warnings.append(
+            "All sampler nodes appear chained; picking the first as primary"
+        )
         return samplers[0]
 
     # ---------- seed / steps / cfg / sampler / scheduler ----------
 
-    def _literal(self, val):
+    def _literal(self, val: Any):
         return val if not isinstance(val, (NodeRef, AmbiguousBranch)) else None
 
-    def sampling_params(self, sampler_id: str | None) -> dict:
-        out = {"seed": None, "sampler": None, "scheduler": None, "steps": None, "cfg": None}
+    def sampling_params(self, sampler_id: str | None) -> SamplingParams:
+        out: SamplingParams = {
+            "seed": None,
+            "sampler": None,
+            "scheduler": None,
+            "steps": None,
+            "cfg": None,
+        }
         if sampler_id is None:
             return out
         node = self.ev.get(sampler_id)
@@ -238,7 +307,9 @@ class SemanticExtractor:
         if out["seed"] is None and "noise" in inputs:
             noise_val = self.ev.fold_value(sampler_id, "noise")
             if isinstance(noise_val, NodeRef):
-                out["seed"] = self._literal(self.ev.fold_value(noise_val.node_id, "noise_seed"))
+                out["seed"] = self._literal(
+                    self.ev.fold_value(noise_val.node_id, "noise_seed")
+                )
 
         # steps
         if "steps" in inputs:
@@ -249,7 +320,9 @@ class SemanticExtractor:
                 target = self.ev.get(sigmas_val.node_id)
                 tinputs = target.get("inputs") or {}
                 if "steps" in tinputs:
-                    out["steps"] = self._literal(self.ev.fold_value(sigmas_val.node_id, "steps"))
+                    out["steps"] = self._literal(
+                        self.ev.fold_value(sigmas_val.node_id, "steps")
+                    )
                 elif "sigmas" in tinputs and isinstance(tinputs["sigmas"], str):
                     parts = [p for p in tinputs["sigmas"].split(",") if p.strip()]
                     out["steps"] = max(len(parts) - 1, 0)
@@ -263,25 +336,35 @@ class SemanticExtractor:
                 gnode = self.ev.get(guider_val.node_id)
                 ginputs = gnode.get("inputs") or {}
                 if "cfg" in ginputs:
-                    out["cfg"] = self._literal(self.ev.fold_value(guider_val.node_id, "cfg"))
+                    out["cfg"] = self._literal(
+                        self.ev.fold_value(guider_val.node_id, "cfg")
+                    )
                 elif "conditioning" in ginputs:
                     cond_val = self.ev.fold_value(guider_val.node_id, "conditioning")
                     if isinstance(cond_val, NodeRef):
                         cnode = self.ev.get(cond_val.node_id)
                         if "guidance" in (cnode.get("inputs") or {}):
-                            out["cfg"] = self._literal(self.ev.fold_value(cond_val.node_id, "guidance"))
+                            out["cfg"] = self._literal(
+                                self.ev.fold_value(cond_val.node_id, "guidance")
+                            )
 
         # sampler_name
         if "sampler_name" in inputs:
-            out["sampler"] = self._literal(self.ev.fold_value(sampler_id, "sampler_name"))
+            out["sampler"] = self._literal(
+                self.ev.fold_value(sampler_id, "sampler_name")
+            )
         elif "sampler" in inputs:
             sampler_val = self.ev.fold_value(sampler_id, "sampler")
             if isinstance(sampler_val, NodeRef):
-                out["sampler"] = self._literal(self.ev.fold_value(sampler_val.node_id, "sampler_name"))
+                out["sampler"] = self._literal(
+                    self.ev.fold_value(sampler_val.node_id, "sampler_name")
+                )
 
         # scheduler
         if "scheduler" in inputs:
-            out["scheduler"] = self._literal(self.ev.fold_value(sampler_id, "scheduler"))
+            out["scheduler"] = self._literal(
+                self.ev.fold_value(sampler_id, "scheduler")
+            )
         elif "sigmas" in inputs:
             sigmas_val = self.ev.fold_value(sampler_id, "sigmas")
             if isinstance(sigmas_val, NodeRef):
@@ -295,8 +378,12 @@ class SemanticExtractor:
 
     # ---------- requested width / height ----------
 
-    def requested_dimensions(self, sampler_id: str | None) -> dict:
-        result = {"requested_width": None, "requested_height": None, "source": None}
+    def requested_dimensions(self, sampler_id: str | None) -> RequestedDimensions:
+        result: RequestedDimensions = {
+            "requested_width": None,
+            "requested_height": None,
+            "source": "",
+        }
 
         # Tier 1: explicitly named "Width"/"Height" primitive nodes anywhere
         # in the live graph -- these are the user-facing exposed knobs.
@@ -311,8 +398,12 @@ class SemanticExtractor:
             elif title == "height":
                 height_node = nid
         if width_node and height_node:
-            result["requested_width"] = self._literal(self.ev.fold_value(width_node, "value"))
-            result["requested_height"] = self._literal(self.ev.fold_value(height_node, "value"))
+            result["requested_width"] = self._literal(
+                self.ev.fold_value(width_node, "value")
+            )
+            result["requested_height"] = self._literal(
+                self.ev.fold_value(height_node, "value")
+            )
             result["source"] = "named_primitive"
             return result
 
@@ -323,19 +414,28 @@ class SemanticExtractor:
             if root:
                 node = self.ev.get(root)
                 if "width" in (node.get("inputs") or {}):
-                    result["requested_width"] = self._literal(self.ev.fold_value(root, "width"))
-                    result["requested_height"] = self._literal(self.ev.fold_value(root, "height"))
+                    result["requested_width"] = self._literal(
+                        self.ev.fold_value(root, "width")
+                    )
+                    result["requested_height"] = self._literal(
+                        self.ev.fold_value(root, "height")
+                    )
                     result["source"] = f"latent_root:{node.get('class_type')}"
         return result
 
-    def _find_latent_root(self, sampler_id: str, _visited: set | None = None) -> str | None:
+    def _find_latent_root(
+        self, sampler_id: str, _visited: set | None = None
+    ) -> str | None:
         visited = _visited if _visited is not None else set()
         node = self.ev.get(sampler_id)
         if sampler_id in visited:
             return None
         visited.add(sampler_id)
         ct = node.get("class_type", "")
-        if LATENT_ROOT_PATTERN.search(ct) or ("width" in (node.get("inputs") or {}) and "height" in (node.get("inputs") or {})):
+        if LATENT_ROOT_PATTERN.search(ct) or (
+            "width" in (node.get("inputs") or {})
+            and "height" in (node.get("inputs") or {})
+        ):
             return sampler_id
         for val in (node.get("inputs") or {}).values():
             if self.ev.is_link(val):
@@ -346,14 +446,19 @@ class SemanticExtractor:
 
     # ---------- frame count (videos) ----------
 
-    def frame_count(self) -> dict:
+    def frame_count(self) -> FrameCountInfo:
         for key in ("length", "frames_number", "num_frames", "frame_count"):
             for nid in self.live_ids:
                 node = self.ev.get(nid)
+                if node is None:
+                    continue
                 if key in (node.get("inputs") or {}):
                     val = self._literal(self.ev.fold_value(nid, key))
                     if isinstance(val, (int, float)):
-                        return {"frame_count": int(val), "source": f"graph:{node.get('class_type')}.{key}"}
+                        return {
+                            "frame_count": int(val),
+                            "source": f"graph:{node.get('class_type')}.{key}",
+                        }
         return {"frame_count": None, "source": None}
 
     # ---------- forward-trace helper (asset roles, prompt roles) ----------
@@ -375,7 +480,9 @@ class SemanticExtractor:
                         # multiple distinct semantic signals -- continuing
                         # would conflate e.g. positive- and negative-prompt
                         # paths that both legitimately pass through it.
-                        if not FORWARD_TRACE_STOP_PATTERN.search(node.get("class_type", "")):
+                        if not FORWARD_TRACE_STOP_PATTERN.search(
+                            node.get("class_type", "")
+                        ):
                             next_frontier.add(nid)
             if not next_frontier:
                 break
@@ -385,12 +492,19 @@ class SemanticExtractor:
 
     # ---------- prompts ----------
 
-    def all_prompts(self) -> list[dict]:
-        text_nodes = [nid for nid in self.live_ids if TEXT_ENCODE_PATTERN.search(self.ev.class_type(nid) or "")]
-        results = []
+    def all_prompts(self) -> list[PromptUsed]:
+        text_nodes = [
+            nid
+            for nid in self.live_ids
+            if TEXT_ENCODE_PATTERN.search(self.ev.class_type(nid) or "")
+        ]
+        results: list[PromptUsed] = []
         single = len(text_nodes) == 1
         for nid in text_nodes:
             node = self.ev.get(nid)
+            if node is None:
+                continue
+
             text_val = None
             for key in ("text", "text_g", "text_l"):
                 if key in (node.get("inputs") or {}):
@@ -401,77 +515,106 @@ class SemanticExtractor:
                 role = "positive"
             else:
                 role = _best_match(slots, PROMPT_ROLE_RULES, default="unknown")
-            results.append({
-                "node_id": nid,
-                "title": self.ev.title(nid),
-                "role": role,
-                "text": text_val,
-            })
+            results.append(
+                {
+                    "node_id": nid,
+                    "title": self.ev.title(nid),
+                    "role": role,
+                    "text": text_val,
+                }
+            )
         return results
 
-    def positive_negative(self, prompts: list[dict]) -> tuple[str | None, str | None]:
+    def positive_negative(
+        self, prompts: list[PromptUsed]
+    ) -> tuple[str | None, str | None]:
         pos = next((p["text"] for p in prompts if p["role"] == "positive"), None)
         neg = next((p["text"] for p in prompts if p["role"] == "negative"), None)
         return pos, neg
 
     # ---------- input assets ----------
 
-    def input_assets(self) -> list[dict]:
-        asset_nodes = [nid for nid in self.live_ids if ASSET_SOURCE_PATTERN.search(self.ev.class_type(nid) or "")]
-        results = []
+    def input_assets(self) -> list[InputAssetInfo]:
+        asset_nodes = [
+            nid
+            for nid in self.live_ids
+            if ASSET_SOURCE_PATTERN.search(self.ev.class_type(nid) or "")
+        ]
+        results: list[InputAssetInfo] = []
         for nid in asset_nodes:
             node = self.ev.get(nid)
+            if node is None:
+                continue
+
             slots = self._forward_slot_names(nid, max_hops=5)
             role = _best_match(slots, ASSET_ROLE_RULES, default="other")
             value = None
-            inputs = node.get("inputs") or {}
+            inputs: JSONDict = node.get("inputs") or {}
             for key in ("image", "audio", "video"):
                 if key in inputs and isinstance(inputs[key], str):
                     value = inputs[key]
                     break
-            results.append({
-                "node_id": nid,
-                "class_type": node.get("class_type"),
-                "title": self.ev.title(nid),
-                "role": role,
-                "value": value,
-            })
+            results.append(
+                {
+                    "node_id": nid,
+                    "class_type": node.get("class_type"),
+                    "title": self.ev.title(nid),
+                    "role": role,
+                    "value": value,
+                }
+            )
         return results
 
     # ---------- models ----------
 
-    def models(self) -> list[dict]:
-        results = []
+    def models(self) -> list[ModelUsedInfo]:
+        results: list[ModelUsedInfo] = []
         for nid in self.live_ids:
             node = self.ev.get(nid)
+            if node is None:
+                continue
+
             ct = node.get("class_type", "")
             role = _model_role(ct)
             if role is None:
                 continue
-            inputs = node.get("inputs") or {}
-            name = None
-            for key in ("ckpt_name", "unet_name", "lora_name", "vae_name", "clip_name",
-                        "control_net_name", "model_name", "text_encoder"):
+            inputs: JSONDict = node.get("inputs") or {}
+            name: str | None = None
+            for key in (
+                "ckpt_name",
+                "unet_name",
+                "lora_name",
+                "vae_name",
+                "clip_name",
+                "control_net_name",
+                "model_name",
+                "text_encoder",
+            ):
                 if key in inputs and isinstance(inputs[key], str):
                     name = inputs[key]
                     break
-            strength = {}
+            strength: StrengthInfo = {}
             for key in ("strength_model", "strength_clip", "strength"):
                 if key in inputs:
                     v = self._literal(self.ev.fold_value(nid, key))
                     if v is not None:
                         strength[key] = v
-            results.append({
-                "node_id": nid,
-                "class_type": ct,
-                "title": self.ev.title(nid),
-                "role": role,
-                "name": name,
-                **strength,
-            })
+
+            results.append(
+                {
+                    "node_id": nid,
+                    "class_type": ct,
+                    "title": self.ev.title(nid),
+                    "role": role,
+                    "name": name,
+                    **strength,
+                }
+            )
         return results
 
-    def primary_model(self, models: list[dict], sampler_id: str | None = None) -> dict | None:
+    def primary_model(
+        self, models: list[ModelUsedInfo], sampler_id: str | None = None
+    ) -> ModelUsedInfo | None:
         """Prefer the model that actually feeds the primary sampler's
         'model' input (walking through any wrapper nodes like
         ModelSamplingSD3 in between) -- this matters for dual-model
@@ -489,7 +632,9 @@ class SemanticExtractor:
                 return m
         return None
 
-    def _trace_primary_model_node(self, start_id: str, _visited: set | None = None) -> str | None:
+    def _trace_primary_model_node(
+        self, start_id: str, _visited: set | None = None
+    ) -> str | None:
         visited = _visited if _visited is not None else set()
         current = start_id
         while current not in visited:
@@ -499,7 +644,12 @@ class SemanticExtractor:
                 return None
             inputs = node.get("inputs") or {}
             if "model" not in inputs:
-                return current if _model_role(node.get("class_type", "")) == "primary_generation_model" else None
+                return (
+                    current
+                    if _model_role(node.get("class_type", ""))
+                    == "primary_generation_model"
+                    else None
+                )
             val = self.ev.fold_value(current, "model")
             if isinstance(val, NodeRef):
                 if _model_role(val.class_type or "") == "primary_generation_model":
@@ -511,7 +661,7 @@ class SemanticExtractor:
 
     # ---------- workflow_type ----------
 
-    def infer_workflow_type(self, assets: list[dict]) -> dict:
+    def infer_workflow_type(self, assets: list[InputAssetInfo]) -> WorkflowTypeInfo:
         roles = [a["role"] for a in assets]
         image_roles = {"first_frame", "last_frame", "reference_image", "input_image"}
         n_image_inputs = sum(1 for r in roles if r in image_roles)

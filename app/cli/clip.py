@@ -1,9 +1,8 @@
+from app.cli.ui.banner import print_error, print_header, print_line, print_success
+from app.cli.ui.prompts import int_prompt, text_prompt
 from app.db.session import SessionLocal
-from app.models.scene import Scene
 from app.models.clip import Clip
-
-from app.cli.ui.banner import print_header, print_line, print_error, print_success
-from app.cli.ui.prompts import text_prompt, int_prompt
+from app.models.scene import Scene
 
 
 def create_clip():
@@ -11,12 +10,7 @@ def create_clip():
     session = SessionLocal()
 
     try:
-
-        scenes = (
-            session.query(Scene)
-            .order_by(Scene.id)
-            .all()
-        )
+        scenes = session.query(Scene).order_by(Scene.id).all()
 
         if not scenes:
             print_error("No scenes found")
@@ -36,6 +30,8 @@ def create_clip():
         description = text_prompt("Description")
 
         comments = text_prompt("Comments")
+
+        assert scene_id is not None
 
         clip = Clip(
             scene_id=scene_id,

@@ -20,32 +20,33 @@ triple. No graph interpretation here.
 """
 
 from __future__ import annotations
-from pathlib import Path
 
 import json
-import subprocess
 import re
-from typing import Any
+import subprocess
+from pathlib import Path
+from typing import TYPE_CHECKING, Any, cast
 
-from app.services.metadata.raw_metadata import extract_raw_metadata
+if TYPE_CHECKING:
+    from app.schemas.types.metadata import ExifDump, MediaProbe, ParseResult
 
 
-def load_exiftool_dump(path_or_dict) -> dict:
+def load_exiftool_dump(path_or_dict: Path | ExifDump) -> ExifDump:
     if isinstance(path_or_dict, dict):
         return path_or_dict
-    with open(path_or_dict, "r", encoding="utf-8") as f:
+    with open(path_or_dict, encoding="utf-8") as f:
         return json.load(f)
 
 
-def _coerce_dict(blob: Any) -> dict | None:
+def _coerce_dict(blob: Any) -> dict[str, Any] | None:
     if blob is None:
         return None
     if isinstance(blob, dict):
-        return blob
+        return cast("dict[str, Any]", blob)
     if isinstance(blob, str):
         try:
             parsed = json.loads(blob)
-            return parsed if isinstance(parsed, dict) else None
+            return cast("dict[str, Any]", parsed) if isinstance(parsed, dict) else None
         except json.JSONDecodeError:
             return None
     return None
@@ -64,7 +65,9 @@ def _parse_duration(val: Any) -> float | None:
     return None
 
 
-def extract_prompt_workflow(meta: dict) -> tuple[dict | None, dict | None, list[str]]:
+def extract_prompt_workflow(
+    meta: dict[str, Any],
+) -> tuple[dict[str, Any] | None, dict[str, Any] | None, list[str]]:
     """Finds the prompt/workflow blobs regardless of which namespace they
     landed in (PNG:* for images, Keys:* for QuickTime-based video/audio)."""
     warnings: list[str] = []
@@ -85,19 +88,26 @@ def extract_prompt_workflow(meta: dict) -> tuple[dict | None, dict | None, list[
             break
 
     if prompt is None:
-        warnings.append("No Prompt field found under any known namespace (PNG:/Keys:/XMP:)")
+        warnings.append(
+            "No Prompt field found under any known namespace (PNG:/Keys:/XMP:)"
+        )
 
     return prompt, workflow, warnings
 
 
-def extract_media_probe(meta: dict) -> dict:
+def extract_media_probe(meta: dict[str, Any]) -> MediaProbe:
     """Pulls ACTUAL (ground-truth) file properties -- as opposed to what the
     workflow graph requested. Tries image-style fields first, then
     QuickTime/video-style fields."""
-    probe: dict[str, Any] = {
-        "width": None, "height": None, "fps": None,
-        "duration_seconds": None, "has_audio": False,
-        "audio_format": None, "audio_channels": None, "audio_sample_rate": None,
+    probe: MediaProbe = {
+        "width": None,
+        "height": None,
+        "fps": None,
+        "duration_seconds": None,
+        "has_audio": False,
+        "audio_format": None,
+        "audio_channels": None,
+        "audio_sample_rate": None,
         "file_type": meta.get("File:FileType"),
         "mime_type": meta.get("File:MIMEType"),
     }
@@ -116,7 +126,9 @@ def extract_media_probe(meta: dict) -> dict:
     probe["width"] = meta.get("Track1:ImageWidth")
     probe["height"] = meta.get("Track1:ImageHeight")
     probe["fps"] = meta.get("Track1:VideoFrameRate")
-    probe["duration_seconds"] = _parse_duration(meta.get("QuickTime:Duration") or meta.get("Track1:TrackDuration"))
+    probe["duration_seconds"] = _parse_duration(
+        meta.get("QuickTime:Duration") or meta.get("Track1:TrackDuration")
+    )
 
     if meta.get("Track2:AudioFormat") is not None:
         probe["has_audio"] = True
@@ -127,12 +139,12 @@ def extract_media_probe(meta: dict) -> dict:
     return probe
 
 
-def parse(exif_dump: dict) -> dict:
+def parse(exif_dump: ExifDump) -> ParseResult:
     """Top-level convenience: returns {'source_file', 'prompt', 'workflow',
     'media_probe', 'warnings'}."""
-    #dump = load_exiftool_dump(path_or_dict)
-    meta = exif_dump.get("metadata", {})
-    source_file = exif_dump.get("file")
+    # dump = load_exiftool_dump(path_or_dict)
+    meta = exif_dump["metadata"]
+    source_file = exif_dump["file"]
 
     prompt, workflow, warnings = extract_prompt_workflow(meta)
     probe = extract_media_probe(meta)
@@ -146,14 +158,13 @@ def parse(exif_dump: dict) -> dict:
     }
 
 
-
-def inspect(file_path: str | Path) -> dict[str, Any]:
+def inspect(file_path: str | Path) -> ExifDump:
     path = Path(file_path)
 
     if not path.exists():
         raise FileNotFoundError(path)
 
-    result = subprocess.run(
+    result: subprocess.CompletedProcess[str] = subprocess.run(
         [
             "exiftool",
             "-j",
@@ -168,7 +179,7 @@ def inspect(file_path: str | Path) -> dict[str, Any]:
 
     data = json.loads(result.stdout)
 
-    metadata = data[0] if data else {}
+    metadata: dict[str, Any] = data[0] if data else {}
 
     for key in ("Keys:Workflow", "Keys:Prompt", "PNG:Workflow", "PNG:Prompt"):
         value = metadata.get(key)

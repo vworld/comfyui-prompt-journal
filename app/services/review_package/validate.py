@@ -1,12 +1,11 @@
-import re
 import json
+import re
 from pathlib import Path
 
 from sqlalchemy import select
 
 from app.db.session import SessionLocal
 from app.models import Generation
-
 
 REQUIRED_FILES = [
     "manifest.json",

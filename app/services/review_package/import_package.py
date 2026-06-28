@@ -1,25 +1,21 @@
-from pathlib import Path
 import shutil
+from pathlib import Path
 
 from sqlalchemy import select
 
 from app.db.session import SessionLocal
-
 from app.models import (
     Generation,
     Shot,
 )
-
-from app.services.review_package.validate import (
-    validate_review_package,
+from app.services.review_package.archive import (
+    archive_review_package,
 )
-
 from app.services.review_package.review_parser import (
     parse_review_file,
 )
-
-from app.services.review_package.archive import (
-    archive_review_package,
+from app.services.review_package.validate import (
+    validate_review_package,
 )
 
 

@@ -1,94 +1,50 @@
-from pathlib import Path
 import json
 import shutil
+from pathlib import Path
 
 from sqlalchemy import select
 
 from app.config.config import CONFIG
-
 from app.db.session import SessionLocal
-
 from app.models import (
     Asset,
     Generation,
     GenerationAsset,
     Shot,
 )
-
 from app.services.assets.archive import archive_media_file
-from app.services.assets.metadata import extract_asset_metadata
-
 from app.services.assets.hash import sha256_file
+from app.services.assets.metadata import extract_asset_metadata
+from app.services.assets.utils import output_file_role, resolve_input_asset_path
 from app.services.metadata.schema_extract import (
     extract_schema,
 )
-
-from app.services.review_package.manifest import (
-    write_manifest,
-)
-
 from app.services.review_package.llm_context import (
     write_llm_context,
 )
-
+from app.services.review_package.manifest import (
+    write_manifest,
+)
 from app.services.review_package.review_md import (
     write_review_template,
 )
-
 from app.services.review_package.warnings import (
     write_warnings,
 )
 
 
-def _resolve_input_asset_path(
-        input_asset: dict,
-) -> Path:
-    file_name = input_asset["value"]
-
-    return (
-            Path(
-                CONFIG["comfyui_input_dir"]
-            )
-            / file_name
-    )
-
-
-def _output_role(
-        workflow_type: str | None,
-) -> str:
-    if not workflow_type:
-        return "output_asset"
-
-    workflow_type = workflow_type.lower()
-
-    if "video" in workflow_type:
-        return "output_video"
-
-    if "image" in workflow_type:
-        return "output_image"
-
-    return "output_asset"
-
-
 def create_review_package(
-        output_file: str | Path,
-        shot_id: int,
+    output_file: str | Path,
+    shot_id: int,
 ) -> int:
     output_file = Path(output_file)
 
     if not output_file.exists():
-        raise FileNotFoundError(
-            output_file
-        )
+        raise FileNotFoundError(output_file)
 
-    metadata = extract_schema(
-        str(output_file)
-    )
+    metadata = extract_schema(str(output_file))
 
-    input_assets = metadata.get(
-        "input_assets",
-        []
-    )
+    input_assets = metadata.get("input_assets", [])
 
     db = SessionLocal()
 
@@ -96,28 +52,19 @@ def create_review_package(
 
     created_asset_ids: list[int] = []
 
-    created_archive_files: list[
-        Path
-    ] = []
+    created_archive_files: list[Path] = []
 
     review_dir: Path | None = None
 
     try:
-
         #
         # Validate Shot
         #
 
-        shot = db.scalar(
-            select(Shot).where(
-                Shot.id == shot_id
-            )
-        )
+        shot = db.scalar(select(Shot).where(Shot.id == shot_id))
 
         if not shot:
-            raise ValueError(
-                f"Shot not found: {shot_id}"
-            )
+            raise ValueError(f"Shot not found: {shot_id}")
 
         #
         # Resolve Input Assets
@@ -126,24 +73,14 @@ def create_review_package(
         resolved_inputs = []
 
         for input_asset in input_assets:
-
-            path = (
-                _resolve_input_asset_path(
-                    input_asset
-                )
-            )
+            path = resolve_input_asset_path(input_asset["value"])
 
             if not path.exists():
-                raise FileNotFoundError(
-                    f"Missing input asset: "
-                    f"{path}"
-                )
+                raise FileNotFoundError(f"Missing input asset: {path}")
 
             resolved_inputs.append(
                 {
-                    "role": input_asset.get(
-                        "role"
-                    ),
+                    "role": input_asset.get("role"),
                     "path": path,
                 }
             )
@@ -152,22 +89,13 @@ def create_review_package(
         # Output Hash
         #
 
-        output_hash = (
-            sha256_file(output_file)
-        )
+        output_hash = sha256_file(output_file)
 
-        existing_output = db.scalar(
-            select(Asset).where(
-                Asset.file_hash
-                == output_hash
-            )
-        )
+        existing_output = db.scalar(select(Asset).where(Asset.file_hash == output_hash))
 
         if existing_output:
             raise ValueError(
-                "Output asset already "
-                "exists in archive."
-                f" Hash: {output_hash}"
+                f"Output asset already exists in archive. Hash: {output_hash}"
             )
 
         #
@@ -177,117 +105,46 @@ def create_review_package(
         generation = Generation(
             project_id=shot.project_id,
             shot_id=shot.id,
-
-            workflow_name=metadata.get(
-                "workflow_name"
-            ),
-
-            workflow_id=metadata.get(
-                "workflow_id"
-            ),
-
-            workflow_type=metadata.get(
-                "workflow_type"
-            ),
-
+            workflow_name=metadata.get("workflow_name"),
+            workflow_id=metadata.get("workflow_id"),
+            workflow_type=metadata.get("workflow_type"),
             generation_time_seconds=None,
-
             seed=metadata.get("seed"),
-
             requested_width=metadata.get("requested_width"),
-
-            requested_height=metadata.get(
-                "requested_height"
-            ),
-
-            output_width=metadata.get(
-                "output_width"
-            ),
-
-            output_height=metadata.get(
-                "output_height"
-            ),
-
-            fps=metadata.get(
-                "fps"
-            ),
-
-            frame_count=metadata.get(
-                "frame_count"
-            ),
-
-            duration_seconds=metadata.get(
-                "duration_seconds"
-            ),
-
-            sampler=metadata.get(
-                "sampler"
-            ),
-
-            scheduler=metadata.get(
-                "scheduler"
-            ),
-
-            steps=metadata.get(
-                "steps"
-            ),
-
-            cfg=metadata.get(
-                "cfg"
-            ),
-
-            primary_model_name=(
-                metadata.get(
-                    "primary_model",
-                    {}
-                ).get("name")
-            ),
-
+            requested_height=metadata.get("requested_height"),
+            output_width=metadata.get("output_width"),
+            output_height=metadata.get("output_height"),
+            fps=metadata.get("fps"),
+            frame_count=metadata.get("frame_count"),
+            duration_seconds=metadata.get("duration_seconds"),
+            sampler=metadata.get("sampler"),
+            scheduler=metadata.get("scheduler"),
+            steps=metadata.get("steps"),
+            cfg=metadata.get("cfg"),
+            primary_model_name=(metadata.get("primary_model", {}).get("name")),
             models_json=json.dumps(
-                metadata.get(
-                    "models",
-                    []
-                ),
+                metadata.get("models", []),
                 ensure_ascii=False,
             ),
-
-            prompt=metadata.get(
-                "prompt"
-            ),
-
-            negative_prompt=metadata.get(
-                "negative_prompt"
-            ),
-
+            prompt=metadata.get("prompt"),
+            negative_prompt=metadata.get("negative_prompt"),
             all_prompts_json=json.dumps(
-                metadata.get(
-                    "all_prompts",
-                    []
-                ),
+                metadata.get("all_prompts", []),
                 ensure_ascii=False,
             ),
-
-            input_files_count=len(
-                resolved_inputs
-            ),
+            input_files_count=len(resolved_inputs),
         )
 
         db.add(generation)
         db.flush()
 
-        created_generation_id = (
-            generation.id
-        )
+        created_generation_id = generation.id
 
         #
         # Output Asset
         #
 
-        output_asset_meta = (
-            extract_asset_metadata(
-                output_file
-            )
-        )
+        output_asset_meta = extract_asset_metadata(output_file)
 
         output_asset = Asset(
             **output_asset_meta,
@@ -297,14 +154,11 @@ def create_review_package(
         db.add(output_asset)
         db.flush()
 
-        output_asset.archive_file_name = (
-            f"{output_asset.id}_"
-            f"{output_asset.file_name}"
-        )
+        archive_file_name = f"{output_asset.id}_{output_asset.file_name}"
 
-        created_asset_ids.append(
-            output_asset.id
-        )
+        output_asset.archive_file_name = archive_file_name
+
+        created_asset_ids.append(output_asset.id)
 
         db.flush()
 
@@ -312,11 +166,7 @@ def create_review_package(
             GenerationAsset(
                 generation_id=generation.id,
                 asset_id=output_asset.id,
-                role=_output_role(
-                    metadata.get(
-                        "workflow_type"
-                    )
-                ),
+                role=output_file_role(metadata.get("workflow_type")),
             )
         )
 
@@ -329,27 +179,15 @@ def create_review_package(
         llm_input_files = []
 
         for resolved in resolved_inputs:
-
             role = resolved["role"]
             path = resolved["path"]
 
-            file_hash = (
-                sha256_file(path)
-            )
+            file_hash = sha256_file(path)
 
-            asset = db.scalar(
-                select(Asset).where(
-                    Asset.file_hash
-                    == file_hash
-                )
-            )
+            asset = db.scalar(select(Asset).where(Asset.file_hash == file_hash))
 
             if not asset:
-                asset_meta = (
-                    extract_asset_metadata(
-                        path
-                    )
-                )
+                asset_meta = extract_asset_metadata(path)
 
                 asset = Asset(
                     **asset_meta,
@@ -359,14 +197,9 @@ def create_review_package(
                 db.add(asset)
                 db.flush()
 
-                asset.archive_file_name = (
-                    f"{asset.id}_"
-                    f"{asset.file_name}"
-                )
+                asset.archive_file_name = f"{asset.id}_{asset.file_name}"
 
-                created_asset_ids.append(
-                    asset.id
-                )
+                created_asset_ids.append(asset.id)
 
                 db.flush()
 
@@ -380,19 +213,15 @@ def create_review_package(
 
             input_files_manifest.append(
                 {
-                    "file_name":
-                        asset.archive_file_name,
-                    "hash":
-                        asset.file_hash,
+                    "file_name": asset.archive_file_name,
+                    "hash": asset.file_hash,
                 }
             )
 
             llm_input_files.append(
                 {
-                    "file_name":
-                        asset.archive_file_name,
-                    "role":
-                        role,
+                    "file_name": asset.archive_file_name,
+                    "role": role,
                 }
             )
 
@@ -402,14 +231,7 @@ def create_review_package(
         # Archive New Assets
         #
 
-        archive_media_dir = (
-                Path(
-                    CONFIG[
-                        "asset_archive_dir"
-                    ]
-                )
-                / "media"
-        )
+        archive_media_dir = Path(CONFIG["asset_archive_dir"]) / "media"
 
         archive_media_dir.mkdir(
             parents=True,
@@ -420,66 +242,43 @@ def create_review_package(
         # output asset
         #
 
-        archived_output = (
-            archive_media_file(
-                output_file,
-                output_asset.archive_file_name,
-            )
+        archived_output = archive_media_file(
+            output_file,
+            archive_file_name,
         )
 
-        created_archive_files.append(
-            archived_output
-        )
+        created_archive_files.append(archived_output)
 
         #
         # newly created inputs
         #
 
-        for asset_id in (
-                created_asset_ids
-        ):
-
-            if (
-                    asset_id
-                    == output_asset.id
-            ):
+        for asset_id in created_asset_ids:
+            if asset_id == output_asset.id:
                 continue
 
             asset = db.get(
                 Asset,
                 asset_id,
             )
+            assert asset is not None
+            assert asset.file_path is not None
+            assert asset.archive_file_name is not None
 
-            source_path = Path(
-                asset.file_path
+            source_path = Path(asset.file_path)
+
+            archived = archive_media_file(
+                source_path,
+                asset.archive_file_name,
             )
 
-            archived = (
-                archive_media_file(
-                    source_path,
-                    asset.archive_file_name,
-                )
-            )
-
-            created_archive_files.append(
-                archived
-            )
+            created_archive_files.append(archived)
 
         #
         # Review Package
         #
 
-        review_dir = (
-                Path(
-                    CONFIG[
-                        "review_package_dir"
-                    ]
-                )
-                / (
-                    f"review_"
-                    f"{generation.id}"
-                )
-        )
+        review_dir = Path(CONFIG["review_package_dir"]) / (f"review_{generation.id}")
 
         review_dir.mkdir(
             parents=True,
@@ -488,34 +287,20 @@ def create_review_package(
 
         generation_assets = (
             db.execute(
-                select(
-                    Asset
-                )
-                .join(
-                    GenerationAsset
-                )
-                .where(
-                    GenerationAsset
-                    .generation_id
-                    == generation.id
-                )
+                select(Asset)
+                .join(GenerationAsset)
+                .where(GenerationAsset.generation_id == generation.id)
             )
             .scalars()
             .all()
         )
 
-        for asset in (
-                generation_assets
-        ):
-            source = (
-                    archive_media_dir
-                    / asset.archive_file_name
-            )
+        for asset in generation_assets:
+            assert asset.archive_file_name is not None
 
-            destination = (
-                    review_dir
-                    / asset.archive_file_name
-            )
+            source = archive_media_dir / asset.archive_file_name
+
+            destination = review_dir / asset.archive_file_name
 
             shutil.copy2(
                 source,
@@ -526,26 +311,20 @@ def create_review_package(
             review_dir=review_dir,
             generation_id=generation.id,
             shot_id=shot.id,
-            output_file=(output_asset.archive_file_name),
+            output_file=archive_file_name,
             output_hash=output_hash,
-            input_files=(
-                input_files_manifest
-            ),
+            input_files=input_files_manifest,
         )
 
         write_llm_context(
             review_dir=review_dir,
             generation_id=generation.id,
             metadata=metadata,
-            input_files=(
-                llm_input_files
-            ),
-            output_file=(output_asset.archive_file_name),
+            input_files=llm_input_files,
+            output_file=archive_file_name,
         )
 
-        write_review_template(
-            review_dir, generation
-        )
+        write_review_template(review_dir, generation)
 
         write_warnings(
             review_dir,
@@ -555,15 +334,11 @@ def create_review_package(
         return generation.id
 
     except Exception:
-
         #
         # review package cleanup
         #
 
-        if (
-                review_dir
-                and review_dir.exists()
-        ):
+        if review_dir and review_dir.exists():
             shutil.rmtree(
                 review_dir,
                 ignore_errors=True,
@@ -573,13 +348,9 @@ def create_review_package(
         # archive cleanup
         #
 
-        for path in (
-                created_archive_files
-        ):
+        for path in created_archive_files:
             try:
-                path.unlink(
-                    missing_ok=True
-                )
+                path.unlink(missing_ok=True)
             except Exception:
                 pass
 
@@ -588,30 +359,14 @@ def create_review_package(
         #
 
         if created_generation_id:
-
-            db.query(
-                GenerationAsset
-            ).filter(
-                GenerationAsset
-                .generation_id
-                == created_generation_id
+            db.query(GenerationAsset).filter(
+                GenerationAsset.generation_id == created_generation_id
             ).delete()
 
-            db.query(
-                Generation
-            ).filter(
-                Generation.id
-                == created_generation_id
-            ).delete()
+            db.query(Generation).filter(Generation.id == created_generation_id).delete()
 
             if created_asset_ids:
-                db.query(
-                    Asset
-                ).filter(
-                    Asset.id.in_(
-                        created_asset_ids
-                    )
-                ).delete(
+                db.query(Asset).filter(Asset.id.in_(created_asset_ids)).delete(
                     synchronize_session=False
                 )
 

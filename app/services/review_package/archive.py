@@ -1,8 +1,7 @@
-from pathlib import Path
 import zipfile
+from pathlib import Path
 
 from app.config.config import CONFIG
-
 
 REVIEW_FILES = [
     "manifest.json",

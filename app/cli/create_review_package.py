@@ -1,15 +1,19 @@
 from pathlib import Path
 
+from app.cli.helpers.review_summary import review_summary
+from app.cli.helpers.shot_picker import pick_shot
+from app.cli.ui.banner import (
+    print_error,
+    print_header,
+    print_kv,
+    print_line,
+    print_success,
+)
+from app.cli.ui.prompts import text_prompt
 from app.services.metadata.schema_extract import extract_schema
 from app.services.review_package.create import (
     create_review_package as create_review_package_service,
 )
-
-from app.cli.helpers.shot_picker import pick_shot
-from app.cli.helpers.review_summary import review_summary
-
-from app.cli.ui.banner import print_header, print_kv, print_line, print_error, print_success
-from app.cli.ui.prompts import text_prompt
 
 
 def create_review_package():
@@ -31,6 +35,12 @@ def create_review_package():
         print_line()
         print_error("Metadata extraction failed")
         print_line(str(exc))
+        return
+
+    if "error" in metadata:
+        print_line()
+        print_error("Metadata extraction failed")
+        print_line(metadata["error"])
         return
 
     print_line()

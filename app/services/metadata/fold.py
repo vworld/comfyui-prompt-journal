@@ -1,3 +1,9 @@
+# pyright: reportUnknownMemberType=false
+# pyright: reportUnknownVariableType=false
+# pyright: reportUnknownArgumentType=false
+# pyright: reportUnknownParameterType=false
+# pyright: reportUnknownLambdaType=false
+
 """
 fold.py
 
@@ -34,14 +40,34 @@ from __future__ import annotations
 import ast
 import math
 import operator
-import re
 from dataclasses import dataclass, field
-from typing import Any
+from typing import TYPE_CHECKING, Any, TypeAlias
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+## Types
+
+NodeId: TypeAlias = str
+SlotIndex: TypeAlias = int
+
+NodeInputs: TypeAlias = dict[str, Any]
+GraphNode: TypeAlias = dict[str, Any]
+Graph: TypeAlias = dict[NodeId, GraphNode]
+
+
+# ------------------
 
 PRIMITIVE_CLASS_TYPES = {
-    "PrimitiveInt", "PrimitiveFloat", "PrimitiveBoolean",
-    "PrimitiveString", "PrimitiveStringMultiline",
-    "INT", "FLOAT", "BOOLEAN", "STRING",
+    "PrimitiveInt",
+    "PrimitiveFloat",
+    "PrimitiveBoolean",
+    "PrimitiveString",
+    "PrimitiveStringMultiline",
+    "INT",
+    "FLOAT",
+    "BOOLEAN",
+    "STRING",
 }
 PRIMITIVE_VALUE_KEYS = ("value", "string", "text", "Text")
 
@@ -51,23 +77,40 @@ SWITCH_FALSE_KEYS = ("on_false", "false", "if_false", "value_false")
 
 REROUTE_CLASS_TYPES = {"Reroute", "ReroutePrimitive"}
 
-_MATH_OPS = {
-    ast.Add: operator.add, ast.Sub: operator.sub, ast.Mult: operator.mul,
-    ast.Div: operator.truediv, ast.FloorDiv: operator.floordiv,
-    ast.Mod: operator.mod, ast.Pow: operator.pow,
-    ast.USub: operator.neg, ast.UAdd: operator.pos,
+_MATH_OPS: dict[type[ast.AST], Callable[..., Any]] = {
+    ast.Add: operator.add,
+    ast.Sub: operator.sub,
+    ast.Mult: operator.mul,
+    ast.Div: operator.truediv,
+    ast.FloorDiv: operator.floordiv,
+    ast.Mod: operator.mod,
+    ast.Pow: operator.pow,
+    ast.USub: operator.neg,
+    ast.UAdd: operator.pos,
 }
-_MATH_FUNCS = {
-    "floor": math.floor, "ceil": math.ceil, "round": round,
-    "abs": abs, "min": min, "max": max, "sqrt": math.sqrt,
+_MATH_FUNCS: dict[str, Callable[..., Any]] = {
+    "floor": math.floor,
+    "ceil": math.ceil,
+    "round": round,
+    "abs": abs,
+    "min": min,
+    "max": max,
+    "sqrt": math.sqrt,
 }
+
+
+def _make_fold_cache() -> dict[tuple[str, int], Any]:
+    return {}
 
 
 class NodeRef:
+    node_id: NodeId
+    class_type: str | None
+    title: str | None
     """A pointer to a node that did NOT fold down to a literal -- i.e. it's
     a 'real' node (loader, sampler, image source, etc.), not wiring."""
 
-    def __init__(self, node_id: str, class_type: str | None, title: str | None):
+    def __init__(self, node_id: NodeId, class_type: str | None, title: str | None):
         self.node_id = node_id
         self.class_type = class_type
         self.title = title
@@ -75,19 +118,25 @@ class NodeRef:
     def __repr__(self):
         return f"NodeRef({self.node_id}, {self.class_type!r})"
 
-    def to_dict(self):
-        return {"_ref": self.node_id, "class_type": self.class_type, "title": self.title}
+    def to_dict(self) -> dict[str, str | None]:
+        return {
+            "_ref": self.node_id,
+            "class_type": self.class_type,
+            "title": self.title,
+        }
 
 
 class AmbiguousBranch:
+    node_id: NodeId
+    branches: dict[str, Any]
     """A switch whose condition could not be resolved to a literal -- both
     branches are reported since we genuinely don't know which was used."""
 
-    def __init__(self, node_id: str, branches: dict[str, Any]):
+    def __init__(self, node_id: NodeId, branches: dict[str, Any]):
         self.node_id = node_id
         self.branches = branches
 
-    def to_dict(self):
+    def to_dict(self) -> dict[str, Any]:
         return {"_ambiguous_switch": self.node_id, "branches": self.branches}
 
 
@@ -100,7 +149,7 @@ def safe_eval_math(expr: str, variables: dict[str, float]) -> float | int | None
     except SyntaxError:
         return None
 
-    def ev(node):
+    def ev(node: ast.AST) -> Any:
         if isinstance(node, ast.Expression):
             return ev(node.body)
         if isinstance(node, ast.Constant):
@@ -113,7 +162,11 @@ def safe_eval_math(expr: str, variables: dict[str, float]) -> float | int | None
             return _MATH_OPS[type(node.op)](ev(node.left), ev(node.right))
         if isinstance(node, ast.UnaryOp) and type(node.op) in _MATH_OPS:
             return _MATH_OPS[type(node.op)](ev(node.operand))
-        if isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id in _MATH_FUNCS:
+        if (
+            isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Name)
+            and node.func.id in _MATH_FUNCS
+        ):
             args = [ev(a) for a in node.args]
             return _MATH_FUNCS[node.func.id](*args)
         raise ValueError(f"disallowed expression node: {ast.dump(node)}")
@@ -126,34 +179,44 @@ def safe_eval_math(expr: str, variables: dict[str, float]) -> float | int | None
 
 @dataclass
 class GraphEvaluator:
-    nodes: dict[str, dict]
-    _node_ids: set = field(init=False)
-    _fold_cache: dict = field(default_factory=dict, init=False)
+    nodes: Graph
+    _node_ids: set[str] = field(init=False)
+    _fold_cache: dict[tuple[str, int], Any] = field(
+        default_factory=_make_fold_cache,
+        init=False,
+    )
 
     def __post_init__(self):
         self._node_ids = set(self.nodes.keys())
 
     # ---------- basics ----------
 
-    def get(self, node_id: str) -> dict | None:
+    def get(self, node_id: NodeId) -> GraphNode | None:
         return self.nodes.get(str(node_id))
 
-    def class_type(self, node_id: str) -> str | None:
+    def class_type(self, node_id: NodeId) -> str | None:
         n = self.get(node_id)
         return n.get("class_type") if n else None
 
-    def title(self, node_id: str) -> str | None:
+    def title(self, node_id: NodeId) -> str | None:
         n = self.get(node_id)
         if not n:
             return None
-        return (n.get("_meta") or {}).get("title") or n.get("class_type")
+        return (n.get("_meta") or {}).get("title") or n.get("class_type")  # type: ignore
 
     def is_link(self, value: Any) -> bool:
-        return isinstance(value, list) and len(value) == 2 and isinstance(value[1], int) and str(value[0]) in self._node_ids
+        return (
+            isinstance(value, list)
+            and len(value) == 2
+            and isinstance(value[1], int)
+            and str(value[0]) in self._node_ids
+        )
 
     # ---------- constant folding ----------
 
-    def fold_value(self, node_id: str, input_name: str, _depth: int = 0):
+    def fold_value(
+        self, node_id: NodeId, input_name: str, _depth: int = 0
+    ) -> FoldValue:
         node = self.get(node_id)
         if node is None or _depth > 60:
             return None
@@ -164,7 +227,7 @@ class GraphEvaluator:
             return self._fold_link(str(val[0]), val[1], _depth + 1)
         return val  # literal already
 
-    def _fold_link(self, src_id: str, slot: int, _depth: int):
+    def _fold_link(self, src_id: NodeId, slot: SlotIndex, _depth: int) -> FoldValue:
         node = self.get(src_id)
         if node is None:
             return NodeRef(src_id, None, None)
@@ -206,16 +269,19 @@ class GraphEvaluator:
         # Bottom of the foldable chain -- this is a "real" node.
         return NodeRef(src_id, ct, self.title(src_id))
 
-    def _looks_like_switch(self, inputs: dict) -> bool:
+    def _looks_like_switch(self, inputs: NodeInputs) -> bool:
         has_cond = any(k in inputs for k in SWITCH_CONDITION_KEYS)
         has_true = any(k in inputs for k in SWITCH_TRUE_KEYS)
         has_false = any(k in inputs for k in SWITCH_FALSE_KEYS)
         return has_cond and has_true and has_false
 
-    def _eval_switch(self, node_id: str, inputs: dict, _depth: int):
+    def _eval_switch(self, node_id: NodeId, inputs: NodeInputs, _depth: int) -> Any:
         cond_key = next((k for k in SWITCH_CONDITION_KEYS if k in inputs), None)
         true_key = next((k for k in SWITCH_TRUE_KEYS if k in inputs), None)
         false_key = next((k for k in SWITCH_FALSE_KEYS if k in inputs), None)
+
+        if cond_key is None:
+            return None
 
         cond_val = inputs[cond_key]
         if self.is_link(cond_val):
@@ -227,24 +293,32 @@ class GraphEvaluator:
             chosen_key = true_key if cond_val else false_key
         else:
             # condition didn't fold to a literal -- genuinely ambiguous
+            if true_key is None or false_key is None:
+                return None
             true_v = inputs[true_key]
             false_v = inputs[false_key]
-            return AmbiguousBranch(node_id, {
-                "on_true": self._resolve_for_display(true_v, _depth),
-                "on_false": self._resolve_for_display(false_v, _depth),
-            })
+            return AmbiguousBranch(
+                node_id,
+                {
+                    "on_true": self._resolve_for_display(true_v, _depth),
+                    "on_false": self._resolve_for_display(false_v, _depth),
+                },
+            )
+
+        if chosen_key is None:
+            return None
 
         chosen_val = inputs[chosen_key]
         if self.is_link(chosen_val):
             return self._fold_link(str(chosen_val[0]), chosen_val[1], _depth + 1)
         return chosen_val
 
-    def _resolve_for_display(self, val, _depth):
+    def _resolve_for_display(self, val: Any, _depth: int):
         if self.is_link(val):
             return self._fold_link(str(val[0]), val[1], _depth + 1)
         return val
 
-    def _eval_math_node(self, inputs: dict, _depth: int):
+    def _eval_math_node(self, inputs: NodeInputs, _depth: int) -> float | int | None:
         expr = inputs.get("expression")
         if not isinstance(expr, str):
             return None
@@ -278,6 +352,7 @@ class GraphEvaluator:
                 continue
             seen.add(nid)
             node = self.get(nid)
+            assert node is not None
             inputs = node.get("inputs") or {}
 
             if self._looks_like_switch(inputs):
@@ -287,12 +362,14 @@ class GraphEvaluator:
                 cond_val = inputs[cond_key]
                 if self.is_link(cond_val):
                     stack.append(str(cond_val[0]))  # condition source is always live
-                    folded_cond = self.fold_value(nid, cond_key)
+                    folded_cond = self.fold_value(nid, cond_key) # type: ignore
                 else:
                     folded_cond = cond_val
 
                 chosen_key = None
-                if isinstance(folded_cond, (bool, int, float)) and not isinstance(folded_cond, NodeRef):
+                if isinstance(folded_cond, (bool, int, float)) and not isinstance(
+                    folded_cond, NodeRef
+                ):
                     chosen_key = true_key if folded_cond else false_key
 
                 if chosen_key:
@@ -307,7 +384,7 @@ class GraphEvaluator:
                     for k in (true_key, false_key):
                         v = inputs.get(k)
                         if self.is_link(v):
-                            stack.append(str(v[0]))
+                            stack.append(str(v[0])) # type: ignore
                 continue
 
             for val in inputs.values():
@@ -318,3 +395,16 @@ class GraphEvaluator:
                         if self.is_link(item):
                             stack.append(str(item[0]))
         return seen
+
+
+FoldValue = (
+    str
+    | int
+    | float
+    | bool
+    | list[Any]
+    | dict[str, Any]
+    | NodeRef
+    | AmbiguousBranch
+    | None
+)

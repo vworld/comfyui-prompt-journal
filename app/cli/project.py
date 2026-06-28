@@ -1,8 +1,7 @@
+from app.cli.ui.banner import print_error, print_header, print_success
+from app.cli.ui.prompts import text_prompt
 from app.db.session import SessionLocal
 from app.models.project import Project
-
-from app.cli.ui.banner import print_header, print_error, print_success
-from app.cli.ui.prompts import text_prompt
 
 
 def create_project():

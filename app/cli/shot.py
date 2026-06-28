@@ -1,12 +1,10 @@
+from app.cli.ui.banner import print_error, print_header, print_line, print_success
+from app.cli.ui.prompts import int_prompt, text_prompt
 from app.db.session import SessionLocal
-
+from app.models.clip import Clip
 from app.models.project import Project
 from app.models.scene import Scene
-from app.models.clip import Clip
 from app.models.shot import Shot
-
-from app.cli.ui.banner import print_header, print_line, print_error, print_success
-from app.cli.ui.prompts import text_prompt, int_prompt
 
 
 def create_shot():
@@ -15,11 +13,7 @@ def create_shot():
 
     try:
 
-        projects = (
-            session.query(Project)
-            .order_by(Project.id)
-            .all()
-        )
+        projects = session.query(Project).order_by(Project.id).all()
 
         if not projects:
             print_error("No projects found")
@@ -75,6 +69,10 @@ def create_shot():
         description = text_prompt("Description")
 
         comments = text_prompt("Comments")
+
+        assert project_id is not None
+        assert scene_id is not None
+        assert clip_id is not None
 
         shot = Shot(
             project_id=project_id,

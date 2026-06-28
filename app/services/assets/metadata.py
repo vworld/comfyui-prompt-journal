@@ -1,10 +1,11 @@
 import json
-from pathlib import Path
 import mimetypes
+from pathlib import Path
 
-from app.services.metadata.exif_source import inspect, extract_media_probe
+from app.services.metadata.exif_source import extract_media_probe, inspect
 
 
+# todo seems redundant - check and confirm
 def extract_asset_metadata(file_path: str | Path) -> dict:
     path = Path(file_path)
 
