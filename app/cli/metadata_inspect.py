@@ -1,10 +1,10 @@
-from pathlib import Path
 import json
 import sys
 from datetime import datetime
+from pathlib import Path
 
 from app.config.config import CONFIG
-from app.lib.metadata.schema_extract_cli import extract_schema
+from app.services.metadata.schema_extract_cli import extract_schema
 
 SUPPORTED_EXTENSIONS = {
     ".png",

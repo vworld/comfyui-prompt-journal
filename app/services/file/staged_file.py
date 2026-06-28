@@ -6,13 +6,13 @@ from pathlib import Path
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.lib.file.archive import archive_media_file
-from app.lib.file.file_metadata import FileMetadata
-from app.lib.file.hash import sha256_file
-from app.lib.file.paths import get_archive_file_name
 from app.models.asset import Asset
 from app.models.generation import Generation
 from app.models.generation_asset import AssocType, GenerationAsset
+from app.services.file.archive import archive_media_file
+from app.services.file.file_metadata import FileMetadata
+from app.services.file.hash import sha256_file
+from app.services.file.paths import get_archive_file_name
 
 
 class StagedFile:

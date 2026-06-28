@@ -1,7 +1,7 @@
 import shutil
 from pathlib import Path
 
-from app.lib.file.paths import media_archive_dir
+from app.services.file.paths import media_archive_dir
 
 
 def archive_media_file(

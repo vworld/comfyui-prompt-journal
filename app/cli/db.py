@@ -1,6 +1,6 @@
+import sqlite3
 import subprocess
 from datetime import datetime
-import sqlite3
 from pathlib import Path
 from shutil import which
 
@@ -37,7 +37,9 @@ def create_db():
             print(f"Backup created: {backup_path}")
 
         elif choice == "3":
-            confirm = input("DELETING existing database. Proceed? (y/N): ").strip().lower()
+            confirm = (
+                input("DELETING existing database. Proceed? (y/N): ").strip().lower()
+            )
             if confirm not in ("y", "yes"):
                 return
         else:
@@ -73,10 +75,7 @@ def backup_db() -> Path:
 
     BACKUP_DIR.mkdir(parents=True, exist_ok=True)
 
-    backup_path = (
-            BACKUP_DIR
-            / f"{DB_PATH.stem}_{datetime.now():%Y%m%d_%H%M%S}.db"
-    )
+    backup_path = BACKUP_DIR / f"{DB_PATH.stem}_{datetime.now():%Y%m%d_%H%M%S}.db"
 
     src = sqlite3.connect(DB_PATH)
     dst = sqlite3.connect(backup_path)
@@ -106,19 +105,14 @@ def schema_export():
     )
 
     if SCHEMA_FILE.exists():
-        history_file = (
-                SCHEMA_HISTORY_DIR
-                / f"schema_{datetime.now():%Y%m%d_%H%M%S}.sql"
-        )
+        history_file = SCHEMA_HISTORY_DIR / f"schema_{datetime.now():%Y%m%d_%H%M%S}.sql"
 
         SCHEMA_FILE.replace(history_file)
 
         print(f"Archived schema: {history_file}")
 
     if which("sqlite3") is None:
-        raise RuntimeError(
-            "sqlite3 command not found in PATH"
-        )
+        raise RuntimeError("sqlite3 command not found in PATH")
 
     result = subprocess.run(
         ["sqlite3", str(DB_PATH), ".schema"],

@@ -11,9 +11,9 @@ from fastapi.responses import (
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_db
-from app.lib.file.paths import media_archive_dir
 from app.models import Asset
 from app.schemas.api.asset import AssetResponse
+from app.services.file.paths import media_archive_dir
 
 router = APIRouter()
 

@@ -4,13 +4,13 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_db
-from app.lib.project.shot_search import search_shots
 from app.models.shot import Shot
 from app.schemas.api.shot import (
     ShotResponse,
     ShotSearchResult,
     ShotUpdate,
 )
+from app.services.project.shot_search import search_shots
 
 router = APIRouter()
 

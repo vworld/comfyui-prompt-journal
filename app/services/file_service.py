@@ -3,9 +3,9 @@ import shutil
 from fastapi import UploadFile
 from sqlalchemy.orm import Session
 
-from app.lib.file.paths import upload_file_path
-from app.lib.file.staged_file import StagedFile
 from app.models.generation import Generation
+from app.services.file.paths import upload_file_path
+from app.services.file.staged_file import StagedFile
 
 
 class FileService:

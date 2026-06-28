@@ -6,7 +6,7 @@ from sqlalchemy import JSON, Boolean, Float, ForeignKey, Integer, Text, text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
-from app.schemas.types.metadata import ModelUsedInfo, PromptUsed
+from app.schemas.types.metadata import ModelUsedInfo, PromptUsed  # noqa: TC001
 
 if TYPE_CHECKING:
     from app.models.generation_asset import GenerationAsset

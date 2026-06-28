@@ -2,10 +2,6 @@ from functools import cached_property
 from pathlib import Path
 from typing import Any
 
-from app.lib.file.input_file import InputFile
-from app.lib.file.mime_type import get_mime_type
-from app.lib.metadata.exif_source import inspect_file, parse_exif_dump
-from app.lib.metadata.semantic import SemanticExtractor
 from app.schemas.types.metadata import (
     ExifDump,
     ExtractedSchema,
@@ -21,6 +17,10 @@ from app.schemas.types.metadata import (
     WorkflowType,
     WorkflowTypeInfo,
 )
+from app.services.file.input_file import InputFile
+from app.services.file.mime_type import get_mime_type
+from app.services.metadata.exif_source import inspect_file, parse_exif_dump
+from app.services.metadata.semantic import SemanticExtractor
 
 
 class FileMetadata:

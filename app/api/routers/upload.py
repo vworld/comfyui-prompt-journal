@@ -12,8 +12,8 @@ from fastapi import (
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_db
-from app.lib.file_service import FileService
 from app.schemas.api.generation import GenerationDetailResponse
+from app.services.file_service import FileService
 
 router = APIRouter()
 

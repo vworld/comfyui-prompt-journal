@@ -4,8 +4,8 @@ from sqlalchemy import JSON, BigInteger, Float, Integer, Text, text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
-from app.models.generation_asset import GenerationAsset
-from app.schemas.types.metadata import ExifDump
+from app.models.generation_asset import GenerationAsset  # noqa: TC001
+from app.schemas.types.metadata import ExifDump  # noqa: TC001
 
 
 class Asset(Base):

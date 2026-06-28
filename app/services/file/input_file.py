@@ -6,14 +6,14 @@ from pathlib import Path
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.lib.file.archive import archive_media_file
-from app.lib.file.hash import sha256_file
-from app.lib.file.mime_type import get_mime_type
-from app.lib.file.paths import comfyui_input_file_path, get_archive_file_name
-from app.lib.metadata.exif_source import extract_media_probe, inspect_file
 from app.models.asset import Asset
 from app.models.generation_asset import AssocType, GenerationAsset
 from app.schemas.types.metadata import ExifDump, InputAssetInfo, MediaProbe
+from app.services.file.archive import archive_media_file
+from app.services.file.hash import sha256_file
+from app.services.file.mime_type import get_mime_type
+from app.services.file.paths import comfyui_input_file_path, get_archive_file_name
+from app.services.metadata.exif_source import extract_media_probe, inspect_file
 
 
 class InputFile:

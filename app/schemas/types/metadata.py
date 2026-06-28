@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any, Literal, NotRequired, TypeAlias, TypedDict
 
 if TYPE_CHECKING:
-    from app.lib.file.input_file import InputFile
+    from app.services.file.input_file import InputFile
 
 JSONDict: TypeAlias = dict[str, Any]
 Warnings: TypeAlias = list[str]
