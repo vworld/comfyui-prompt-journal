@@ -1,8 +1,9 @@
 # main.py
 
-from app.cli.menu import start_cli
-from app.cli.misc_utils.db import backup_db, create_db, schema_export
-from app.cli.misc_utils.metadata_inspect import inspect_file_metadata
+import argparse
+
+from app.cli.db import backup_db, create_db, schema_export
+from app.cli.metadata_inspect import inspect_file_metadata
 
 """
 Commands
@@ -13,12 +14,10 @@ Commands
  - start
 """
 
-import argparse
-
 
 def main():
     parser = argparse.ArgumentParser(
-        description="ConfyUI Prompt Journal\n\nArgument List."
+        description="ComfyUI Prompt Journal\n\nArgument List."
     )
     subparsers = parser.add_subparsers(dest="command")
 
@@ -35,12 +34,13 @@ def main():
     subparsers.add_parser(
         "schema-export",
         help="export DDL from schema",
-        description="Export the current database schema to schema.sql. Once exported, previous schema is backed up and this becomes the active one. Changing DB is not enough, models should be updated too.", )
+        description="Export the current database schema to schema.sql. Once exported, previous schema is backed up and this becomes the active one. Changing DB is not enough, models should be updated too.",
+    )
 
     subparsers.add_parser(
         "start",
         help="show main menu",
-        description="The main app that handles the reviews"
+        description="The main app that handles the reviews",
     )
 
     subparsers.add_parser("metadata-inspect")
@@ -55,8 +55,16 @@ def main():
         schema_export()
     elif args.command == "metadata-inspect":
         inspect_file_metadata()
+    elif args.command() == "start":
+        print("""
+              CLI app is deprecated.
+              If needed use the branch cli_deprecated.
+              Only some db and metadata commands exist.
+              
+              For reviews use UI
+              """)
     else:
-        start_cli()
+        print("CLI app is deprecated.")
 
 
 if __name__ == "__main__":

@@ -1,4 +1,6 @@
 """
+# Used only by CLI helper
+
 schema_extract.py
 
 The actual entry point:
@@ -21,12 +23,15 @@ it's there so the rules are auditable rather than a black box.
 
 from __future__ import annotations
 
-from typing import Any
-from pathlib import Path
+from typing import TYPE_CHECKING, Any
 
-from .exif_source import parse as parse_exif_dump, inspect
+from .exif_source import inspect_file as inspect
+from .exif_source import parse_exif_dump
+from .fold import AmbiguousBranch, NodeRef
 from .semantic import SemanticExtractor
-from .fold import NodeRef, AmbiguousBranch
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 
 def _clean(value: Any) -> Any:
@@ -56,7 +61,9 @@ def extract_schema(file_path: str | Path) -> dict:
         }
 
     try:
-        sx = SemanticExtractor(parsed["prompt"], parsed["workflow"], parsed["media_probe"])
+        sx = SemanticExtractor(
+            parsed["prompt"], parsed["workflow"], parsed["media_probe"]
+        )
     except Exception as e:
         return {
             "source_file": parsed["source_file"],
@@ -84,26 +91,21 @@ def extract_schema(file_path: str | Path) -> dict:
         "workflow_name": wname,
         "workflow_id": wid,
         "workflow_type": wtype["workflow_type"],
-
         "prompt": pos,
         "negative_prompt": neg,
         "all_prompts": prompts,
-
         "requested_width": dims["requested_width"],
         "requested_height": dims["requested_height"],
         "output_width": probe.get("width"),
         "output_height": probe.get("height"),
-
         "fps": probe.get("fps"),
         "frame_count": frames["frame_count"],
         "duration_seconds": probe.get("duration_seconds"),
-
         "seed": sampling["seed"],
         "sampler": sampling["sampler"],
         "scheduler": sampling["scheduler"],
         "steps": sampling["steps"],
         "cfg": sampling["cfg"],
-
         "input_assets": assets,
         "primary_model": primary_model,
         "models": models,
@@ -131,9 +133,11 @@ def extract_schema(file_path: str | Path) -> dict:
 
 
 if __name__ == "__main__":
-    import sys
     import json
+    import sys
 
     for path in sys.argv[1:]:
         print(f"\n===== {path} =====")
-        print(json.dumps(extract_schema(path), indent=2, ensure_ascii=False, default=str))
+        print(
+            json.dumps(extract_schema(path), indent=2, ensure_ascii=False, default=str)
+        )

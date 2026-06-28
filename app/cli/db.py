@@ -13,6 +13,7 @@ SCHEMA_FILE = CONFIG["base_dir"] / "app" / "db" / "schema.sql"
 
 
 def create_db():
+    return "Deprecated - use alembic migration"
     if not SCHEMA_FILE.exists():
         raise FileNotFoundError(SCHEMA_FILE)
 

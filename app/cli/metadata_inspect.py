@@ -4,7 +4,7 @@ import sys
 from datetime import datetime
 
 from app.config.config import CONFIG
-from app.services.metadata.schema_extract import extract_schema
+from app.lib.metadata.schema_extract_cli import extract_schema
 
 SUPPORTED_EXTENSIONS = {
     ".png",
