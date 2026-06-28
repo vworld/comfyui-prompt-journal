@@ -1,13 +1,17 @@
-from sqlalchemy import ForeignKey
-from sqlalchemy import Integer
-from sqlalchemy import Text
-from sqlalchemy import text
+from __future__ import annotations
 
-from sqlalchemy.orm import Mapped
-from sqlalchemy.orm import mapped_column
-from sqlalchemy.orm import relationship
+from typing import TYPE_CHECKING
+
+from sqlalchemy import ForeignKey, Integer, Text, text
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
+
+if TYPE_CHECKING:
+    from app.models.clip import Clip
+    from app.models.generation import Generation
+    from app.models.project import Project
+    from app.models.scene import Scene
 
 
 class Shot(Base):
@@ -15,69 +19,76 @@ class Shot(Base):
 
     id: Mapped[int] = mapped_column(
         Integer,
-        primary_key=True
+        primary_key=True,
+        init=False,
     )
 
     project_id: Mapped[int] = mapped_column(
         ForeignKey("project.id"),
-        nullable=False
+        nullable=False,
     )
 
     scene_id: Mapped[int] = mapped_column(
         ForeignKey("scene.id"),
-        nullable=False
+        nullable=False,
     )
 
     clip_id: Mapped[int] = mapped_column(
         ForeignKey("clip.id"),
-        nullable=False
-    )
-
-    number: Mapped[int | None] = mapped_column(
-        Integer
+        nullable=False,
     )
 
     name: Mapped[str] = mapped_column(
         Text,
-        nullable=False
+        nullable=False,
+    )
+
+    number: Mapped[int | None] = mapped_column(
+        Integer,
+        default=None,
     )
 
     description: Mapped[str | None] = mapped_column(
-        Text
+        Text,
+        default=None,
     )
 
     comments: Mapped[str | None] = mapped_column(
-        Text
+        Text,
+        default=None,
     )
 
     added_on: Mapped[int] = mapped_column(
         Integer,
         nullable=False,
-        server_default=text(
-            "(CAST(strftime('%s','now') AS INTEGER))"
-        )
+        server_default=text("(CAST(strftime('%s','now') AS INTEGER))"),
+        init=False,
     )
 
-    project = relationship(
+    project: Mapped[Project] = relationship(
         "Project",
         back_populates="shots",
-        lazy="selectin"
+        lazy="selectin",
+        init=False,
     )
 
-    scene = relationship(
+    scene: Mapped[Scene] = relationship(
         "Scene",
         back_populates="shots",
-        lazy="selectin"
+        lazy="selectin",
+        init=False,
     )
 
-    clip = relationship(
+    clip: Mapped[Clip] = relationship(
         "Clip",
         back_populates="shots",
-        lazy="selectin"
+        lazy="selectin",
+        init=False,
     )
 
-    generations = relationship(
+    generations: Mapped[list[Generation]] = relationship(
         "Generation",
         back_populates="shot",
-        lazy="selectin"
+        lazy="selectin",
+        init=False,
     )

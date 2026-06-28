@@ -1,13 +1,11 @@
-from sqlalchemy import Integer
-from sqlalchemy import Float
-from sqlalchemy import Text
-from sqlalchemy import text
+from __future__ import annotations
 
-from sqlalchemy.orm import Mapped
-from sqlalchemy.orm import mapped_column
-from sqlalchemy.orm import relationship
+from sqlalchemy import JSON, BigInteger, Float, Integer, Text, text
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
+from app.models.generation_asset import GenerationAsset
+from app.schemas.types.metadata import ExifDump
 
 
 class Asset(Base):
@@ -15,74 +13,83 @@ class Asset(Base):
 
     id: Mapped[int] = mapped_column(
         Integer,
-        primary_key=True
+        primary_key=True,
+        init=False,
     )
 
-    file_name: Mapped[str | None] = mapped_column(
-        Text
-    )
-
-    file_path: Mapped[str | None] = mapped_column(
-        Text
+    file_name: Mapped[str] = mapped_column(
+        Text,
+        nullable=False,
     )
 
     file_hash: Mapped[str] = mapped_column(
         Text,
         nullable=False,
-        unique=True
+        unique=True,
     )
 
     archive_file_name: Mapped[str | None] = mapped_column(
-        Text
+        Text,
+        nullable=True,
     )
 
-    file_timestamp: Mapped[int | None] = mapped_column(
-        Integer
+    file_timestamp: Mapped[int] = mapped_column(
+        BigInteger,
+        nullable=False,
     )
 
     mime_type: Mapped[str | None] = mapped_column(
-        Text
+        Text,
+        nullable=True,
     )
 
     file_size: Mapped[int | None] = mapped_column(
-        Integer
+        Integer,
+        nullable=True,
     )
 
     width: Mapped[int | None] = mapped_column(
-        Integer
+        Integer,
+        nullable=True,
     )
 
     height: Mapped[int | None] = mapped_column(
-        Integer
+        Integer,
+        nullable=True,
     )
 
-    fps: Mapped[int | None] = mapped_column(
-        Integer
+    fps: Mapped[float | int | None] = mapped_column(
+        Integer,
+        nullable=True,
     )
 
     duration_seconds: Mapped[float | None] = mapped_column(
-        Float
+        Float,
+        nullable=True,
+    )
+
+    metadata_json: Mapped[ExifDump] = mapped_column(
+        JSON,
+        nullable=False,
     )
 
     description: Mapped[str | None] = mapped_column(
-        Text
-    )
-
-    metadata_json: Mapped[str | None] = mapped_column(
-        Text
+        Text,
+        nullable=True,
+        default=None,
     )
 
     added_on: Mapped[int] = mapped_column(
         Integer,
         nullable=False,
-        server_default=text(
-            "(CAST(strftime('%s','now') AS INTEGER))"
-        )
+        server_default=text("(CAST(strftime('%s','now') AS INTEGER))"),
+        init=False,
     )
 
-    generation_assets = relationship(
+    generation_assets: Mapped[list[GenerationAsset]] = relationship(
         "GenerationAsset",
         back_populates="asset",
         lazy="selectin",
-        cascade="all, delete-orphan"
+        cascade="all, delete-orphan",
+        init=False,
     )

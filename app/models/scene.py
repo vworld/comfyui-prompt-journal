@@ -1,13 +1,16 @@
-from sqlalchemy import ForeignKey
-from sqlalchemy import Integer
-from sqlalchemy import Text
-from sqlalchemy import text
+from __future__ import annotations
 
-from sqlalchemy.orm import Mapped
-from sqlalchemy.orm import mapped_column
-from sqlalchemy.orm import relationship
+from typing import TYPE_CHECKING
+
+from sqlalchemy import ForeignKey, Integer, Text, text
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
+
+if TYPE_CHECKING:
+    from app.models.clip import Clip
+    from app.models.project import Project
+    from app.models.shot import Shot
 
 
 class Scene(Base):
@@ -15,53 +18,55 @@ class Scene(Base):
 
     id: Mapped[int] = mapped_column(
         Integer,
-        primary_key=True
+        primary_key=True,
+        init=False,
     )
 
     project_id: Mapped[int] = mapped_column(
-        ForeignKey("project.id", ondelete="CASCADE"),
-        nullable=False
+        ForeignKey("project.id", ondelete="CASCADE"), nullable=False
     )
+
+    name: Mapped[str] = mapped_column(Text, nullable=False)
 
     number: Mapped[int | None] = mapped_column(
-        Integer
-    )
-
-    name: Mapped[str] = mapped_column(
-        Text,
-        nullable=False
+        Integer,
+        default=False,
     )
 
     description: Mapped[str | None] = mapped_column(
-        Text
+        Text,
+        default=None,
     )
 
     comments: Mapped[str | None] = mapped_column(
-        Text
+        Text,
+        default=None,
     )
 
     added_on: Mapped[int] = mapped_column(
         Integer,
         nullable=False,
-        server_default=text(
-            "(CAST(strftime('%s','now') AS INTEGER))"
-        )
+        server_default=text("(CAST(strftime('%s','now') AS INTEGER))"),
+        init=False,
     )
 
-    project = relationship(
+    project: Mapped[Project] = relationship(
         "Project",
         back_populates="scenes",
-        lazy="selectin"
+        lazy="selectin",
+        init=False,
     )
 
-    clips = relationship(
+    clips: Mapped[list[Clip]] = relationship(
         "Clip",
         back_populates="scene",
-        lazy="selectin"
+        lazy="selectin",
+        init=False,
     )
 
-    shots = relationship(
+    shots: Mapped[list[Shot]] = relationship(
         "Shot",
         back_populates="scene",
-        lazy="selectin"
+        lazy="selectin",
+        init=False,
     )

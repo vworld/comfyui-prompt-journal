@@ -1,13 +1,27 @@
-from sqlalchemy import ForeignKey
-from sqlalchemy import Integer
-from sqlalchemy import Text
-from sqlalchemy import UniqueConstraint
+from __future__ import annotations
 
-from sqlalchemy.orm import Mapped
-from sqlalchemy.orm import mapped_column
-from sqlalchemy.orm import relationship
+from enum import StrEnum
+from typing import TYPE_CHECKING
+
+from sqlalchemy import (
+    Enum,
+    ForeignKey,
+    Integer,
+    Text,
+    UniqueConstraint,
+)
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
+
+if TYPE_CHECKING:
+    from .asset import Asset
+    from .generation import Generation
+
+
+class AssocType(StrEnum):
+    INPUT = "input"
+    OUTPUT = "output"
 
 
 class GenerationAsset(Base):
@@ -17,44 +31,53 @@ class GenerationAsset(Base):
         UniqueConstraint(
             "generation_id",
             "asset_id",
-            name="uq_generation_asset"
+            "role",
+            name="uq_generation_asset",
         ),
     )
 
     id: Mapped[int] = mapped_column(
         Integer,
-        primary_key=True
+        primary_key=True,
+        init=False,
     )
 
     generation_id: Mapped[int] = mapped_column(
         ForeignKey(
             "generation.id",
-            ondelete="CASCADE"
+            ondelete="CASCADE",
         ),
-        nullable=False
+        nullable=False,
     )
 
     asset_id: Mapped[int] = mapped_column(
         ForeignKey(
             "asset.id",
-            ondelete="CASCADE"
+            ondelete="CASCADE",
         ),
-        nullable=False
+        nullable=False,
+    )
+
+    assoc_type: Mapped[AssocType] = mapped_column(
+        Enum(AssocType),
+        nullable=False,
     )
 
     role: Mapped[str] = mapped_column(
         Text,
-        nullable=False
+        nullable=False,
     )
 
-    generation = relationship(
+    generation: Mapped[Generation] = relationship(
         "Generation",
         back_populates="generation_assets",
-        lazy="selectin"
+        lazy="selectin",
+        init=False,
     )
 
-    asset = relationship(
+    asset: Mapped[Asset] = relationship(
         "Asset",
         back_populates="generation_assets",
-        lazy="selectin"
+        lazy="selectin",
+        init=False,
     )

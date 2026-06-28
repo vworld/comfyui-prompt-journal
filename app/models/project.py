@@ -1,12 +1,16 @@
-from sqlalchemy import Integer
-from sqlalchemy import Text
-from sqlalchemy import text
+from __future__ import annotations
 
-from sqlalchemy.orm import Mapped
-from sqlalchemy.orm import mapped_column
-from sqlalchemy.orm import relationship
+from typing import TYPE_CHECKING
+
+from sqlalchemy import Integer, Text, text
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
+
+if TYPE_CHECKING:
+    from app.models.generation import Generation
+    from app.models.scene import Scene
+    from app.models.shot import Shot
 
 
 class Project(Base):
@@ -14,45 +18,46 @@ class Project(Base):
 
     id: Mapped[int] = mapped_column(
         Integer,
-        primary_key=True
+        primary_key=True,
+        init=False,
     )
 
-    name: Mapped[str] = mapped_column(
-        Text,
-        nullable=False
-    )
+    name: Mapped[str] = mapped_column(Text, nullable=False)
 
     project_type: Mapped[str] = mapped_column(
         Text,
-        nullable=False
+        nullable=False,
     )
 
     description: Mapped[str | None] = mapped_column(
-        Text
+        Text,
+        default=None,
     )
 
     added_on: Mapped[int] = mapped_column(
         Integer,
         nullable=False,
-        server_default=text(
-            "(CAST(strftime('%s','now') AS INTEGER))"
-        )
+        server_default=text("(CAST(strftime('%s','now') AS INTEGER))"),
+        init=False,
     )
 
-    scenes = relationship(
+    scenes: Mapped[list[Scene]] = relationship(
         "Scene",
         back_populates="project",
-        lazy="selectin"
+        lazy="selectin",
+        init=False,
     )
 
-    generations = relationship(
+    generations: Mapped[list[Generation]] = relationship(
         "Generation",
         back_populates="project",
-        lazy="selectin"
+        lazy="selectin",
+        init=False,
     )
 
-    shots = relationship(
+    shots: Mapped[list[Shot]] = relationship(
         "Shot",
         back_populates="project",
-        lazy="selectin"
+        lazy="selectin",
+        init=False,
     )

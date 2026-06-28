@@ -1,13 +1,15 @@
-from pathlib import Path
-from dotenv import load_dotenv
 import os
+from pathlib import Path
+
+from dotenv import load_dotenv
 
 load_dotenv()
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
 
-def resolve_path(value: str) -> Path:
+def resolve_path(value: str | None) -> Path:
+    assert value is not None
     path = Path(value)
 
     if path.is_absolute():
@@ -26,4 +28,5 @@ CONFIG = {
     "asset_archive_dir": resolve_path(os.getenv("ASSET_ARCHIVE_DIR")),
     "review_package_dir": resolve_path(os.getenv("REVIEW_PACKAGE_DIR")),
     "temp_dir": resolve_path(os.getenv("TEMP_DIR")),
+    "upload_data_dir": resolve_path(os.getenv("UPLOAD_DATA_DIR")),
 }

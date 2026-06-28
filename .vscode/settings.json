@@ -1,0 +1,16 @@
+{
+    "sqltools.useNodeRuntime": true,
+    "sqltools.connections": [
+        {
+            "previewLimit": 50,
+            "driver": "SQLite",
+            "database": "${workspaceFolder:comfyui-prompt-journal}/data/prompt_archive.db",
+            "name": "db"
+        }
+    ],
+    "cSpell.words": [
+        "comfyui",
+        "ondelete",
+        "selectinload"
+    ]
+}
