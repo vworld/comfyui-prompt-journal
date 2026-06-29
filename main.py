@@ -34,7 +34,9 @@ def main():
     subparsers.add_parser(
         "schema-export",
         help="export DDL from schema",
-        description="Export the current database schema to schema.sql. Once exported, previous schema is backed up and this becomes the active one. Changing DB is not enough, models should be updated too.",
+        description="Export the current database schema to schema.sql. "
+        "Once exported, previous schema is backed up and this becomes "
+        "the active one. Changing DB is not enough, models should be updated too.",
     )
 
     subparsers.add_parser(
