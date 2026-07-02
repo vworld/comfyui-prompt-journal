@@ -24,7 +24,9 @@ class GenerationSummaryResponse(BaseModel):
         None,
         description="ID of the associated shot",
     )
-
+    attempt_num: int = Field(
+        description="-1 means it is not yet attached to a shot",
+    )
     # Workflow
     workflow_name: str | None = Field(
         None,
@@ -172,13 +174,13 @@ class GenerationDetailResponse(GenerationSummaryResponse):
 
 
 class GenerationManualReviewUpdateRequest(BaseModel):
-    shot_id: int
+    shot_id: int | None = None
     raw_intent: str | None = None
     raw_review: str | None = None
     accepted: bool | None = None
 
 
-class GenerationEnrichedReviewUpdateRequest(GenerationManualReviewUpdateRequest):
+class GenerationUpdateRequest(GenerationManualReviewUpdateRequest):
     cleaned_intent: str | None = None
     cleaned_review: str | None = None
 
@@ -198,4 +200,3 @@ class CopyLLMContext:
     input_file_names: list[str]
     raw_intent: str
     raw_review: str
-    

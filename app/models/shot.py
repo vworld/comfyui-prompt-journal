@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from sqlalchemy import ForeignKey, Integer, Text, text
+from sqlalchemy import ForeignKey, Integer, Text, UniqueConstraint, text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
@@ -16,6 +16,18 @@ if TYPE_CHECKING:
 
 class Shot(Base):
     __tablename__ = "shot"
+    __table_args__ = (
+        UniqueConstraint(
+            "clip_id",
+            "name",
+            name="uq_shot_clip_id_name",
+        ),
+        UniqueConstraint(
+            "clip_id",
+            "number",
+            name="uq_shot_clip_id_number",
+        ),
+    )
 
     id: Mapped[int] = mapped_column(
         Integer,

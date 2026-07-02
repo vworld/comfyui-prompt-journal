@@ -21,3 +21,8 @@ class ProjectResponse(BaseModel):
     project_type: str
     description: str | None
     added_on: int
+
+
+class ProjectNameValidationResponse(BaseModel):
+    is_unique: bool
+    duplicate: ProjectResponse | None

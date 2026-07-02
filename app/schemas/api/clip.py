@@ -30,3 +30,16 @@ class ClipResponse(BaseModel):
     
 class ClipHierarchicalResponse(ClipResponse):
     scene: SceneHierarchicalResponse
+
+
+class ClipNameValidationResponse(BaseModel):
+    is_unique: bool
+    duplicate: ClipResponse | None
+
+
+class ClipNumberValidationResponse(BaseModel):
+    is_unique: bool
+    duplicate: ClipResponse | None
+
+
+# next-number response for clips uses shared response `NextAvailableNumberResponse`

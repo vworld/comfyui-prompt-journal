@@ -13,6 +13,10 @@ class AssetResponse(BaseModel):
         ...,
         description="Name of the file",
     )
+    orig_file_path: str | None = Field(
+        None,
+        description="Original file path on disk",
+    )
     # file_hash: str = Field(
     #     ...,
     #     description="Hash of the file",
@@ -59,4 +63,19 @@ class AssetResponse(BaseModel):
     )
     added_on: int = Field(
         description="Timestamp when the asset was added",
+    )
+
+
+class RecreateAssetFromArchiveResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    asset_id: int = Field(description="The asset that was recreated")
+    recreated_path: str = Field(
+        description="The path where the file was copied to. "
+        "This should match orig_file_path"
+    )
+    copied: bool = Field(
+        description="Whether the file was actually copied. "
+        "If the file already exists, this will be false. "
+        "When the operation fails an error response would be sent.",
     )

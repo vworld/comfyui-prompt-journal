@@ -7,11 +7,55 @@ from app.api.deps import get_db
 from app.models.project import Project
 from app.schemas.api.project import (
     ProjectCreateRequest,
+    ProjectNameValidationResponse,
     ProjectResponse,
     ProjectUpdateRequest,
 )
 
 router = APIRouter()
+
+
+@router.get(
+    "/validate/project-name",
+    response_model=ProjectNameValidationResponse,
+    summary="Validate project name uniqueness.",
+)
+def validate_project_name(
+    db: Annotated[Session, Depends(get_db)],
+    name: str,
+):
+    existing_project = db.query(Project).filter(Project.name == name).first()
+    return ProjectNameValidationResponse(
+        is_unique=(existing_project is None),
+        duplicate=(
+            ProjectResponse.model_validate(existing_project)
+            if existing_project
+            else None
+        ),
+    )
+
+
+@router.get(
+    "/search",
+    response_model=list[ProjectResponse],
+    summary="Search projects by name.",
+)
+def search_projects(
+    db: Annotated[
+        Session,
+        Depends(get_db),
+    ],
+    q: str,
+    limit: int = 10,
+):
+    search_pattern = f"%{q}%"
+    return (
+        db.query(Project)
+        .filter(Project.name.ilike(search_pattern))
+        .order_by(Project.id)
+        .limit(limit)
+        .all()
+    )
 
 
 @router.get(

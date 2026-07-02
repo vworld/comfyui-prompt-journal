@@ -66,6 +66,7 @@ class InputFile:
 
         self.asset = Asset(
             file_name=self.file_name,
+            orig_file_path=str(self.file_path.resolve()),
             file_hash=self.file_hash,
             file_timestamp=self.file_timestamp,
             archive_file_name=None,

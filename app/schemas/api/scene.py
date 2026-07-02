@@ -30,3 +30,22 @@ class SceneResponse(BaseModel):
     
 class SceneHierarchicalResponse(SceneResponse):
     project: ProjectResponse
+
+
+class SceneNameValidationResponse(BaseModel):
+    is_unique: bool
+    duplicate: SceneResponse | None
+
+
+class SceneNumberValidationResponse(BaseModel):
+    is_unique: bool
+    duplicate: SceneResponse | None
+
+
+class NextAvailableNumberResponse(BaseModel):
+    next_number: int
+    max_number: int | None
+
+
+# next-number response for scenes uses shared response
+    

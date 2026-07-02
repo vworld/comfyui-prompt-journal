@@ -1,11 +1,14 @@
 import shutil
+from pathlib import Path
 
 from fastapi import UploadFile
 from sqlalchemy.orm import Session
 
+from app.db.session import SessionLocal
 from app.models.generation import Generation
 from app.services.file.paths import upload_file_path
 from app.services.file.staged_file import StagedFile
+from app.services.project.generation_service import rebuild_generation_attempt_num
 
 
 class FileService:
@@ -30,14 +33,40 @@ class FileService:
                 file.file,
                 f,
             )
+        return self._import_file(
+            file_path=staging_path,
+            owns_file=True,
+            file_last_modified=file_last_modified,
+            file_orig_name=file_orig_name,
+        )
+
+    def import_file_path(self, path: str):
+        file_path = Path(path)
+        if not file_path.is_file():
+            raise FileNotFoundError(file_path)
+
+        return self._import_file(
+            file_path=file_path,
+            owns_file=False,
+        )
+
+    def _import_file(
+        self,
+        file_path: Path,
+        owns_file: bool,
+        file_last_modified: int | None = None,
+        file_orig_name: str | None = None,
+    ):
         db = self.db
 
         # create class
         staged = StagedFile(
             db=db,
-            path=staging_path,
+            path=file_path,
+            owns_file=owns_file,
             file_last_modified=file_last_modified,
             file_orig_name=file_orig_name,
+            file_orig_path=str(file_path.resolve()),
         )
 
         try:
@@ -76,6 +105,10 @@ class FileService:
 
                 db.add(input_file.link_to_generation(generation.id))
 
+            if generation.shot_id:
+                db.flush()  # output file association has to persist
+                rebuild_generation_attempt_num(db, generation.shot_id)
+
             db.commit()
 
             staged.delete_file()
@@ -90,3 +123,11 @@ class FileService:
                 input_file.rollback_archive()
             staged.delete_file()
             raise
+
+    @classmethod
+    def import_native(cls, path: str) -> int:
+        with SessionLocal() as db:
+            service = cls(db)
+            generation = service.import_file_path(path)
+
+            return generation.id

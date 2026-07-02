@@ -13,8 +13,10 @@ from app.api.routers import (
     scenes,
     shot_generations,
     shots,
+    stats,
     upload,
 )
+from app.api.websocket import routes
 
 app = FastAPI(
     title="ComfyUI Prompt Journal API",
@@ -99,6 +101,18 @@ api_router.include_router(
     assets.router,
     prefix="/assets",
     tags=["Assets"],
+)
+
+api_router.include_router(
+    routes.router,
+    prefix="/ws",
+    tags=["Websocket"],
+)
+
+api_router.include_router(
+    stats.router,
+    prefix="/stats",
+    tags=["Stats"],
 )
 
 

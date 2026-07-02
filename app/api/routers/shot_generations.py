@@ -46,10 +46,8 @@ def get_generation_count(
         Depends(get_db),
     ],
 ):
-    count = (
-        db.query(func.count(Generation.id))
-        .filter(Generation.shot_id == shot_id)
-        .scalar()
+    count = db.scalar(
+        select(func.count(Generation.id)).where(Generation.shot_id == shot_id)
     )
 
     return {"count": count or 0}

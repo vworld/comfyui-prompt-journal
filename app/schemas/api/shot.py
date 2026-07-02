@@ -65,3 +65,16 @@ class ShotSearchResultDict(TypedDict):
 
 class ShotHierarchicalResponse(ShotResponse):
     clip: ClipHierarchicalResponse
+
+
+class ShotNameValidationResponse(BaseModel):
+    is_unique: bool
+    duplicate: ShotResponse | None
+
+
+class ShotNumberValidationResponse(BaseModel):
+    is_unique: bool
+    duplicate: ShotResponse | None
+
+
+# next-number response for shots uses shared response `NextAvailableNumberResponse`

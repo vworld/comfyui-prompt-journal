@@ -20,13 +20,19 @@ class StagedFile:
         self,
         db: Session,
         path: Path,
-        file_last_modified: int,
-        file_orig_name: str,
+        # owns when using html5 uploads which is a copy of the orig file.
+        # Guards delete calls
+        owns_file: bool,
+        file_last_modified: int | None,
+        file_orig_name: str | None,
+        file_orig_path: str | None,
     ) -> None:
         self.db: Session = db
         self.path: Path = path
-        self.file_last_modified: int = file_last_modified
-        self.file_orig_name: str = file_orig_name
+        self.owns_file = owns_file
+        self._file_last_modified: int | None = file_last_modified
+        self._file_orig_name: str | None = file_orig_name
+        self._file_orig_path: str | None = file_orig_path
         self.asset: Asset | None = None
         self.generation: Generation | None = None
         self.archive_destination_path: Path | None = None
@@ -107,6 +113,7 @@ class StagedFile:
                 all_prompts_json=metadata.all_prompts,
                 input_files_count=len(metadata.input_assets),
                 accepted=False,
+                attempt_num=-1,
             )
         return self.generation
 
@@ -124,6 +131,7 @@ class StagedFile:
             metadata = self.metadata
             self.asset = Asset(
                 file_name=self.file_orig_name,
+                orig_file_path=self.file_orig_path,
                 file_hash=self._hash,
                 file_timestamp=self.file_last_modified,
                 archive_file_name=None,
@@ -170,17 +178,39 @@ class StagedFile:
 
     def delete_file(self):
         """
-        Delete the uploaded staging file.
+        Depends on the property owns_file to decide if it can delete.
+        Delete the staging file is it is owned (ie uploaded).
 
         The staging file is expected to exist for the lifetime of this
         object. Missing files are treated as an unexpected state.
         """
+        if not self.owns_file:
+            return
         self.path.unlink()
 
     def rollback_archive(self):
         if self.archive_destination_path is not None:
             self.archive_destination_path.unlink(missing_ok=True)
             self.archive_destination_path = None
+
+    @property
+    def file_orig_name(self) -> str:
+        if self._file_orig_name is not None:
+            return self._file_orig_name
+        return self.path.name
+
+    @property
+    def file_orig_path(self):
+        if self._file_orig_path is not None:
+            return self._file_orig_path
+        return str(self.path.resolve())
+
+    @property
+    def file_last_modified(self) -> int:
+        if self._file_last_modified is not None:
+            return self._file_last_modified
+
+        return self._file_stat.st_mtime_ns // 1_000_000
 
     @cached_property
     def is_duplicate(self) -> Asset | None:

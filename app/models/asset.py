@@ -1,11 +1,14 @@
 from __future__ import annotations
 
+from pathlib import Path
+
 from sqlalchemy import JSON, BigInteger, Float, Integer, Text, text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
 from app.models.generation_asset import GenerationAsset  # noqa: TC001
 from app.schemas.types.metadata import ExifDump  # noqa: TC001
+from app.services.file.paths import media_archive_dir
 
 
 class Asset(Base):
@@ -26,6 +29,10 @@ class Asset(Base):
         Text,
         nullable=False,
         unique=True,
+    )
+    orig_file_path: Mapped[str] = mapped_column(
+        Text,
+        nullable=False,
     )
 
     archive_file_name: Mapped[str | None] = mapped_column(
@@ -93,3 +100,9 @@ class Asset(Base):
         cascade="all, delete-orphan",
         init=False,
     )
+
+    @property
+    def archive_file_path(self) -> Path:
+        if not self.archive_file_name:
+            raise ValueError("archive_file_name is not set")
+        return media_archive_dir() / self.archive_file_name
