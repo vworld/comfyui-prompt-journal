@@ -7,7 +7,7 @@ migrate:
 	alembic upgrade head
 
 reset-db:
-	rm -f journal.db
+	rm -f data/prompt_archive.db
 	alembic upgrade head
 
 test:

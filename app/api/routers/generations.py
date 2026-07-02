@@ -15,6 +15,7 @@ from app.schemas.api.generation import (
     GenerationSummaryResponse,
 )
 from app.schemas.api.paginated_response import PaginatedResponse
+from app.services.project.generation_service import rebuild_generation_attempt_num
 
 router = APIRouter()
 
@@ -142,13 +143,16 @@ def update_generation_fields(
 
     updates = payload.model_dump(exclude_unset=True)
 
-    if "shot_id" in updates and generation.shot_id != updates["shot_id"]:
-        shot = db.get(Shot, generation.shot_id)
+    old_shot_id = generation.shot_id
+    new_shot_id: int | None = None
 
+    if "shot_id" in updates and generation.shot_id != updates["shot_id"]:
+        new_shot_id = updates["shot_id"]
+        shot = db.get(Shot, new_shot_id)
         if shot is None:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Shot {generation.shot_id} not found",
+                detail=f"Shot {new_shot_id} not found",
             )
 
         generation.project_id = shot.project_id
@@ -156,6 +160,22 @@ def update_generation_fields(
     for field, value in updates.items():
         setattr(generation, field, value)
 
+    db.flush()
+
+    if new_shot_id != old_shot_id:
+        if new_shot_id is not None:
+            rebuild_generation_attempt_num(
+                db=db,
+                shot_id=new_shot_id,
+                auto_commit=False,
+            )
+
+        if old_shot_id is not None:
+            rebuild_generation_attempt_num(
+                db=db,
+                shot_id=old_shot_id,
+                auto_commit=False,
+            )
     db.commit()
     db.refresh(generation)
 

@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from app.models.generation import Generation
 from app.services.file.paths import upload_file_path
 from app.services.file.staged_file import StagedFile
+from app.services.project.generation_service import rebuild_generation_attempt_num
 
 
 class FileService:
@@ -75,6 +76,10 @@ class FileService:
                     input_file.get_asset(db).archive_file_name = input_file.archive()
 
                 db.add(input_file.link_to_generation(generation.id))
+
+            if generation.shot_id:
+                db.flush() # output file association has to persist
+                rebuild_generation_attempt_num(db, generation.shot_id)
 
             db.commit()
 

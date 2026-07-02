@@ -26,13 +26,18 @@ class Generation(Base):
     project_id: Mapped[int | None] = mapped_column(
         ForeignKey("project.id"),
         nullable=True,
-        init=False
+        init=False,
     )
 
-    shot_id: Mapped[int] = mapped_column(
+    shot_id: Mapped[int | None] = mapped_column(
         ForeignKey("shot.id"),
         nullable=True,
-        init=False
+        init=False,
+    )
+
+    attempt_num: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
     )
 
     # Workflow

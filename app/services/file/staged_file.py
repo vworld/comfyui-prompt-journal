@@ -107,6 +107,7 @@ class StagedFile:
                 all_prompts_json=metadata.all_prompts,
                 input_files_count=len(metadata.input_assets),
                 accepted=False,
+                attempt_num=-1,
             )
         return self.generation
 
