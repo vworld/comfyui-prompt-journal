@@ -28,7 +28,10 @@ class Project(Base):
         init=False,
     )
 
-    name: Mapped[str] = mapped_column(Text, nullable=False)
+    name: Mapped[str] = mapped_column(
+        Text(collation="NOCASE"),
+        nullable=False,
+    )
 
     project_type: Mapped[str] = mapped_column(
         Text,

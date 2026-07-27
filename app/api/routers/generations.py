@@ -8,11 +8,13 @@ from sqlalchemy.orm import Session
 from app.api.deps import get_db
 from app.models.generation import Generation
 from app.models.shot import Shot
+from app.schemas.api.asset import AssetResponse
 from app.schemas.api.generation import (
     GenerationDetailResponse,
     GenerationManualReviewUpdateRequest,
     GenerationSummaryResponse,
     GenerationUpdateRequest,
+    GenerationWithAssetsResponse,
 )
 from app.schemas.api.paginated_response import PaginatedResponse
 from app.services.project.generation_service import (
@@ -25,7 +27,7 @@ router = APIRouter()
 
 @router.get(
     path="",
-    response_model=PaginatedResponse[GenerationSummaryResponse],
+    response_model=PaginatedResponse[GenerationWithAssetsResponse],
     summary="A list of all Generations",
 )
 def get_generations(
@@ -44,16 +46,84 @@ def get_generations(
         le=100,
         description="Maximum number of rows to return",
     ),
-) -> PaginatedResponse[GenerationSummaryResponse]:
-    total = db.scalar(select(func.count()).select_from(Generation))
+    with_shot: bool | None = Query(None),
+    order: Literal["asc", "desc"] = Query("asc"),
+) -> PaginatedResponse[GenerationWithAssetsResponse]:
+    stmt_total = select(func.count()).select_from(Generation)
 
-    stmt = select(Generation).order_by(Generation.id.desc()).offset(offset).limit(limit)
+    stmt = select(Generation).offset(offset).limit(limit)
+
+    if order == "asc":
+        stmt = stmt.order_by(Generation.id.asc())
+    else:
+        stmt = stmt.order_by(Generation.id.desc())
+
+    if with_shot:
+        stmt = stmt.where(Generation.shot_id.is_not(None))
+        stmt_total = stmt_total.where(Generation.shot_id.is_not(None))
+
+    if with_shot is False:
+        stmt = stmt.where(Generation.shot_id.is_(None))
+        stmt_total = stmt_total.where(Generation.shot_id.is_(None))
+
+    total = db.scalar(stmt_total)
 
     generations = db.scalars(stmt).all()
 
-    items = [GenerationSummaryResponse.model_validate(gen) for gen in generations]
+    items: list[GenerationWithAssetsResponse] = []
+    for gen in generations:
+        output_asset = next(
+            (ga.asset for ga in gen.generation_assets if ga.assoc_type == "output"),
+            None,
+        )
+        input_assets = [
+            ga.asset for ga in gen.generation_assets if ga.assoc_type == "input"
+        ]
+        items.append(
+            GenerationWithAssetsResponse(
+                id=gen.id,
+                project_id=gen.project_id,
+                shot_id=gen.shot_id,
+                attempt_num=gen.attempt_num,
+                workflow_name=gen.workflow_name,
+                workflow_id=gen.workflow_id,
+                workflow_type=gen.workflow_type,
+                generation_time_seconds=gen.generation_time_seconds,
+                seed=gen.seed,
+                requested_width=gen.requested_width,
+                requested_height=gen.requested_height,
+                output_width=gen.output_width,
+                output_height=gen.output_height,
+                fps=gen.fps,
+                frame_count=gen.frame_count,
+                duration_seconds=gen.duration_seconds,
+                sampler=gen.sampler,
+                scheduler=gen.scheduler,
+                steps=gen.steps,
+                cfg=gen.cfg,
+                primary_model_name=gen.primary_model_name,
+                models_json=gen.models_json,
+                prompt=gen.prompt,
+                negative_prompt=gen.negative_prompt,
+                all_prompts_json=gen.all_prompts_json,
+                input_files_count=gen.input_files_count,
+                raw_intent=gen.raw_intent,
+                raw_review=gen.raw_review,
+                cleaned_intent=gen.cleaned_intent,
+                cleaned_review=gen.cleaned_review,
+                failure_description=gen.failure_description,
+                suspected_causes=gen.suspected_causes,
+                correction_strategy=gen.correction_strategy,
+                accepted=gen.accepted,
+                added_on=gen.added_on,
+                output_asset=(
+                    AssetResponse.model_validate(output_asset) if output_asset else None
+                ),
+                input_assets=[AssetResponse.model_validate(a) for a in input_assets],
+            )
+        )
 
-    return PaginatedResponse[GenerationSummaryResponse](
+    return PaginatedResponse[GenerationWithAssetsResponse](
         total=total or 0,
         offset=offset,
         limit=limit,

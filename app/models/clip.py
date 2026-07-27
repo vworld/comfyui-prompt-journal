@@ -36,7 +36,10 @@ class Clip(Base):
 
     number: Mapped[int | None] = mapped_column(Integer)
 
-    name: Mapped[str] = mapped_column(Text, nullable=False)
+    name: Mapped[str] = mapped_column(
+        Text(collation="NOCASE"),
+        nullable=False,
+    )
 
     description: Mapped[str | None] = mapped_column(Text)
 

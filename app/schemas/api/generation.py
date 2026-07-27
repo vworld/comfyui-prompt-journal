@@ -4,6 +4,7 @@ from pydantic import (
     Field,
 )
 
+from app.schemas.api.asset import AssetResponse
 from app.schemas.api.generation_asset import GenerationAssetResponse
 from app.schemas.api.shot import ShotHierarchicalResponse
 from app.schemas.types.metadata import ModelUsedInfo, PromptUsed
@@ -159,6 +160,13 @@ class GenerationSummaryResponse(BaseModel):
         ...,
         description="Timestamp when the generation was added",
     )
+
+
+class GenerationWithAssetsResponse(GenerationSummaryResponse):
+    model_config = ConfigDict(from_attributes=True)
+
+    output_asset: AssetResponse | None = Field(None)
+    input_assets: list[AssetResponse] = Field(default_factory=list)
 
 
 class GenerationDetailResponse(GenerationSummaryResponse):

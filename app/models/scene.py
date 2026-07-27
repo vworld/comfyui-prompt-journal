@@ -38,7 +38,10 @@ class Scene(Base):
         ForeignKey("project.id", ondelete="CASCADE"), nullable=False
     )
 
-    name: Mapped[str] = mapped_column(Text, nullable=False)
+    name: Mapped[str] = mapped_column(
+        Text(collation="NOCASE"),
+        nullable=False,
+    )
 
     number: Mapped[int | None] = mapped_column(
         Integer,

@@ -26,3 +26,12 @@ class ProjectResponse(BaseModel):
 class ProjectNameValidationResponse(BaseModel):
     is_unique: bool
     duplicate: ProjectResponse | None
+
+
+class PathItem(BaseModel):
+    kind: str
+    id: int
+
+
+class ProjectPathResponse(BaseModel):
+    path: list[PathItem]

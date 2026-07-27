@@ -51,7 +51,7 @@ class Shot(Base):
     )
 
     name: Mapped[str] = mapped_column(
-        Text,
+        Text(collation="NOCASE"),
         nullable=False,
     )
 
