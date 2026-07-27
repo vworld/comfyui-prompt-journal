@@ -3,16 +3,22 @@ import { request } from "./client";
 import type {
   ClipCreateRequest,
   ClipResponse,
+  ClipUpdateRequest,
   ClipValidationResponse,
+  GenerationDetailResponse,
   NextAvailableNumberResponse,
   ProjectCreateRequest,
   ProjectNameValidationResponse,
+  ProjectPathResponse,
   ProjectResponse,
+  ProjectUpdateRequest,
   SceneCreateRequest,
   SceneResponse,
+  SceneUpdateRequest,
   SceneValidationResponse,
   ShotCreateRequest,
   ShotResponse,
+  ShotUpdateRequest,
   ShotValidationResponse,
 } from "@/types";
 
@@ -67,6 +73,46 @@ export interface NextShotNumberOptions {
   abortSignal?: AbortSignal;
 }
 
+export interface FindProjectIdOptions {
+  entity: "scene" | "clip" | "shot" | "generation";
+  id: number;
+  abortSignal?: AbortSignal;
+}
+
+/**
+ * List every project.
+ */
+export function listProjects(abortSignal?: AbortSignal): Promise<ProjectResponse[]> {
+  return request<"listProjects">(`/api/projects`, {
+    signal: abortSignal,
+  });
+}
+
+export function getProjectById(id: number, abortSignal?: AbortSignal): Promise<ProjectResponse> {
+  return request<"getProjectById">(`/api/projects/${id}`, {
+    signal: abortSignal,
+  });
+}
+
+export function updateProject(
+  id: number,
+  payload: ProjectUpdateRequest,
+  abortSignal?: AbortSignal,
+): Promise<ProjectResponse> {
+  return request<"updateProjectById">(`/api/projects/${id}`, {
+    method: "PATCH",
+    body: payload,
+    signal: abortSignal,
+  });
+}
+
+export function deleteProject(id: number, abortSignal?: AbortSignal): Promise<null> {
+  return request<"deleteProjectById">(`/api/projects/${id}`, {
+    method: "DELETE",
+    signal: abortSignal,
+  });
+}
+
 /**
  * Search projects by name. Pass an empty query to list/recent projects.
  */
@@ -104,6 +150,53 @@ export async function validateProjectName({
   return request<"validateProjectName">(
     `/api/projects/validate/project-name?${params.toString()}`,
     { signal: abortSignal },
+  );
+}
+
+/**
+ * Promise to support DB queries
+ */
+export function getProjectTypes() {
+  return Promise.resolve(["Long Video", "Short Video", "Images", "Experiments", "default"]);
+}
+
+/**
+ * Resolve the path to project ID from any descendant resource.
+ */
+export function findPathToProjectId({
+  entity,
+  id,
+  abortSignal,
+}: FindProjectIdOptions): Promise<ProjectPathResponse> {
+  const params = new URLSearchParams();
+  let field: string | undefined;
+  switch (entity) {
+    case "scene": {
+      field = "scene_id";
+      break;
+    }
+    case "clip": {
+      field = "clip_id";
+      break;
+    }
+    case "shot": {
+      field = "shot_id";
+      break;
+    }
+    case "generation": {
+      field = "generation_id";
+      break;
+    }
+  }
+  if (!field) throw new Error("One of the entities is required");
+
+  params.set(field, id.toString());
+
+  return request<"findPathToProjectId">(
+    `/api/projects/find-path-to-project-id?${params.toString()}`,
+    {
+      signal: abortSignal,
+    },
   );
 }
 
@@ -316,6 +409,132 @@ export async function createShot({
   return request<"createClipShot">(`/api/clips/${clipId}/shots`, {
     method: "POST",
     body: payload,
+    signal: abortSignal,
+  });
+}
+
+/**
+ * List every scene belonging to a project.
+ */
+export function listScenes(projectId: number, abortSignal?: AbortSignal): Promise<SceneResponse[]> {
+  return request<"listProjectScenes">(`/api/projects/${projectId}/scenes`, {
+    signal: abortSignal,
+  });
+}
+
+/**
+ * List every clip belonging to a scene.
+ */
+export function listClips(sceneId: number, abortSignal?: AbortSignal): Promise<ClipResponse[]> {
+  return request<"listSceneClips">(`/api/scenes/${sceneId}/clips`, {
+    signal: abortSignal,
+  });
+}
+
+/**
+ * List every shot belonging to a clip.
+ */
+export function listShots(clipId: number, abortSignal?: AbortSignal): Promise<ShotResponse[]> {
+  return request<"listClipShots">(`/api/clips/${clipId}/shots`, {
+    signal: abortSignal,
+  });
+}
+
+/**
+ * List every generation attempt for a shot.
+ */
+export function listGenerations(
+  shotId: number,
+  abortSignal?: AbortSignal,
+): Promise<GenerationDetailResponse[]> {
+  return request<"listShotGenerations">(`/api/shots/${shotId}/generations`, {
+    signal: abortSignal,
+  });
+}
+
+/* ------------------------------------------------------------------ */
+/*  Scene CRUD (direct endpoints)                                     */
+/* ------------------------------------------------------------------ */
+
+export function getSceneById(id: number, abortSignal?: AbortSignal): Promise<SceneResponse> {
+  return request<"getSceneById">(`/api/scenes/${id}`, {
+    signal: abortSignal,
+  });
+}
+
+export function updateScene(
+  id: number,
+  payload: SceneUpdateRequest,
+  abortSignal?: AbortSignal,
+): Promise<SceneResponse> {
+  return request<"updateSceneById">(`/api/scenes/${id}`, {
+    method: "PATCH",
+    body: payload,
+    signal: abortSignal,
+  });
+}
+
+export function deleteScene(id: number, abortSignal?: AbortSignal): Promise<null> {
+  return request<"deleteSceneById">(`/api/scenes/${id}`, {
+    method: "DELETE",
+    signal: abortSignal,
+  });
+}
+
+/* ------------------------------------------------------------------ */
+/*  Clip CRUD (direct endpoints)                                      */
+/* ------------------------------------------------------------------ */
+
+export function getClipById(id: number, abortSignal?: AbortSignal): Promise<ClipResponse> {
+  return request<"getClipById">(`/api/clips/${id}`, {
+    signal: abortSignal,
+  });
+}
+
+export function updateClip(
+  id: number,
+  payload: ClipUpdateRequest,
+  abortSignal?: AbortSignal,
+): Promise<ClipResponse> {
+  return request<"updateClipById">(`/api/clips/${id}`, {
+    method: "PATCH",
+    body: payload,
+    signal: abortSignal,
+  });
+}
+
+export function deleteClip(id: number, abortSignal?: AbortSignal): Promise<null> {
+  return request<"deleteClipById">(`/api/clips/${id}`, {
+    method: "DELETE",
+    signal: abortSignal,
+  });
+}
+
+/* ------------------------------------------------------------------ */
+/*  Shot CRUD (direct endpoints)                                      */
+/* ------------------------------------------------------------------ */
+
+export function getShotById(id: number, abortSignal?: AbortSignal): Promise<ShotResponse> {
+  return request<"getShotById">(`/api/shots/${id}`, {
+    signal: abortSignal,
+  });
+}
+
+export function updateShot(
+  id: number,
+  payload: ShotUpdateRequest,
+  abortSignal?: AbortSignal,
+): Promise<ShotResponse> {
+  return request<"updateShotById">(`/api/shots/${id}`, {
+    method: "PATCH",
+    body: payload,
+    signal: abortSignal,
+  });
+}
+
+export function deleteShot(id: number, abortSignal?: AbortSignal): Promise<null> {
+  return request<"deleteShotById">(`/api/shots/${id}`, {
+    method: "DELETE",
     signal: abortSignal,
   });
 }

@@ -1,7 +1,7 @@
 import { open } from "@tauri-apps/plugin-dialog";
 import { Inbox } from "lucide-react";
 
-import StatsTable from "@/components/StatsTable";
+import StatsTable from "@/components/shared/StatsTable";
 import { Button } from "@/components/ui/button";
 import {
   Empty,
@@ -22,7 +22,7 @@ async function browseFiles() {
 
 export default function NoUnreviewedGenerationFound() {
   return (
-    <Empty className="bg-workspace">
+    <Empty className="bg-workspace gap-3">
       <EmptyHeader>
         <EmptyMedia variant="icon">
           <Inbox className="" />
@@ -37,11 +37,13 @@ export default function NoUnreviewedGenerationFound() {
           </span>
         </EmptyDescription>
       </EmptyHeader>
-      <EmptyContent className="flex-row justify-center gap-2">
-        <Button>Generations</Button>
-        <Button variant="outline" onClick={() => void browseFiles()}>
-          Import Files
-        </Button>
+      <EmptyContent className="flex-col justify-center gap-3">
+        <div className="flex gap-2">
+          <Button>Generations</Button>
+          <Button variant="outline" onClick={() => void browseFiles()}>
+            Import Files
+          </Button>
+        </div>
         <StatsTable open={true} className="w-60" />
       </EmptyContent>
     </Empty>

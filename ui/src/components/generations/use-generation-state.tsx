@@ -1,10 +1,9 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { useNavigate } from "react-router";
 import { toast } from "sonner";
 
 import type { AlertOptions, GenerationDetailResponse, GenerationUpdateRequest } from "@/types";
 
-import { ApiError } from "@/api/client";
 import {
   getGeneration,
   getLastUnreviewedGeneration,
@@ -19,23 +18,13 @@ import { writeToClipboard } from "@/lib/clipboard";
 
 export type UseGenerationState = ReturnType<typeof useGenerationState>;
 
-function getApiErrorMessage(error: unknown, defaultError?: string): string {
-  if (error instanceof ApiError) {
-    return `${error.status}: ${error.message}`;
-  }
-
-  if (error instanceof Error) return error.message;
-
-  return defaultError ?? "Unknown Error";
-}
-
 function generationIsDefined(
   generation: GenerationDetailResponse | null,
-  setAlertError: (message: AlertOptions) => void,
+  errorAlert: (message: AlertOptions) => Promise<void>,
   methodName: string,
 ): generation is GenerationDetailResponse {
   if (!generation) {
-    setAlertError({
+    void errorAlert({
       title: "Unexpected Error",
       description: `${methodName}: GenerationId should have been defined.`,
     });
@@ -58,7 +47,6 @@ function validatePastedJson(json: unknown): string[] | null {
 // split fetch/save, intent+review, shot, llm-context into separate hooks before v2
 export function useGenerationState() {
   const [generation, setGeneration] = useState<GenerationDetailResponse | null>(null);
-  const [alertError, setAlertError] = useState<AlertOptions | null>(null);
   const [shotAttemptCount, setShotAttemptCount] = useState<number>(0);
   const draftIntentRef = useRef<string | null>(null);
   const draftReviewRef = useRef<string | null>(null);
@@ -67,26 +55,18 @@ export function useGenerationState() {
   const updateAbortControllerRef = useRef<Map<string, AbortController>>(new Map());
   const navigate = useNavigate();
 
-  const alert = useAlert();
+  const { reportError, error: errorAlert, confirm: confirmAlert } = useAlert();
 
   function reset() {
     setGeneration(null);
     setShotAttemptCount(0);
   }
 
-  useEffect(() => {
-    if (!alertError) return;
-    const error = alertError;
-    // eslint-disable-next-line react-hooks/set-state-in-effect, react-x/set-state-in-effect
-    setAlertError(null);
-    void alert.error(error);
-  }, [alert, alertError]);
-
   const fetchGeneration = useCallback(
     async (genId: number, force?: boolean) => {
       try {
         if (Number.isNaN(genId) || genId < 1) {
-          setAlertError({ title: "Invalid generation ID" });
+          void errorAlert({ title: "Invalid generation ID" });
           return;
         }
 
@@ -97,18 +77,16 @@ export function useGenerationState() {
         const shotAttemptCount = gen.shot?.id ? await getShotGenerationCount(gen.shot.id) : 0;
         setGeneration(gen);
         setShotAttemptCount(shotAttemptCount);
-        setAlertError(null);
         lastSavedIntent.current = gen.raw_intent ?? "";
         lastSavedReview.current = gen.raw_review ?? "";
 
         return gen;
       } catch (error) {
-        const errMsg = getApiErrorMessage(error);
         reset();
-        setAlertError({ title: `Error fetching generation`, description: errMsg });
+        void reportError(error);
       }
     },
-    [generation?.id],
+    [errorAlert, generation?.id, reportError],
   );
 
   function getSignal(key: string): AbortSignal {
@@ -121,41 +99,34 @@ export function useGenerationState() {
 
   const saveGenerationUpdates = useCallback(
     async (genId: number, payload: GenerationUpdateRequest) => {
-      try {
-        const reqKey = getAbortKey(payload);
-        const abortSignal = getSignal(reqKey);
-        await updateGeneration(genId, payload, abortSignal);
-      } catch (error) {
-        const msg = getApiErrorMessage(error);
-        // eslint-disable-next-line preserve-caught-error
-        throw new Error(msg);
-      }
+      const reqKey = getAbortKey(payload);
+      const abortSignal = getSignal(reqKey);
+      await updateGeneration(genId, payload, abortSignal);
     },
     [],
   );
 
   const associateShotIdWithGeneration = useCallback(
     async (selectedShotId: number): Promise<boolean | undefined> => {
-      if (!generationIsDefined(generation, setAlertError, "associateShotIdWithGeneration")) return;
+      if (!generationIsDefined(generation, errorAlert, "associateShotIdWithGeneration")) return;
 
       try {
         await saveGenerationUpdates(generation.id, { shot_id: selectedShotId });
         await fetchGeneration(generation.id, true);
         return true;
       } catch (error) {
-        setAlertError({
+        void reportError(error, {
           title: `Error associating Shot #${selectedShotId} with generation #${generation.id}`,
-          description: error instanceof Error ? error.message : "Error!",
         });
         return false;
       }
     },
-    [fetchGeneration, generation, saveGenerationUpdates],
+    [errorAlert, fetchGeneration, generation, reportError, saveGenerationUpdates],
   );
 
   const detachShotFromGeneration = useCallback(async () => {
-    if (!generationIsDefined(generation, setAlertError, "detachShotFromGeneration")) return;
-    const confirmed = await alert.confirm({
+    if (!generationIsDefined(generation, errorAlert, "detachShotFromGeneration")) return;
+    const confirmed = await confirmAlert({
       title: "Remove the shot association from this generation?",
     });
     if (!confirmed) return;
@@ -165,25 +136,24 @@ export function useGenerationState() {
 
       await fetchGeneration(generation.id, true);
     } catch (error) {
-      setAlertError({
+      void reportError(error, {
         title: "Failed to detach shot from Generation",
-        description: (error as Error).message,
       });
     }
-  }, [alert, fetchGeneration, generation, saveGenerationUpdates]);
+  }, [confirmAlert, errorAlert, fetchGeneration, generation, reportError, saveGenerationUpdates]);
 
   const pullIntentFromLastAttempt = useCallback(
     async (curIntent: string | null): Promise<string | null | undefined> => {
-      if (!generationIsDefined(generation, setAlertError, "pullIntentFromLastAttempt")) return;
+      if (!generationIsDefined(generation, errorAlert, "pullIntentFromLastAttempt")) return;
       if (!generation.shot_id) {
-        setAlertError({
+        void errorAlert({
           title: "No shot assigned to the generation",
           description: "Assign a shot to the generation before pulling the intent.",
         });
         return;
       }
       if (curIntent && curIntent.length > 0) {
-        const confirmed = await alert.confirm({
+        const confirmed = await confirmAlert({
           title: "This will overwrite the current intent. Continue?",
         });
         if (!confirmed) return;
@@ -193,50 +163,47 @@ export function useGenerationState() {
         toast.success("Intent pulled from previous attempt.");
         return gen.raw_intent;
       } catch (error) {
-        const msg = getApiErrorMessage(error);
-        setAlertError({ title: msg });
+        void reportError(error);
       }
     },
-    [alert, generation],
+    [confirmAlert, errorAlert, generation, reportError],
   );
 
   const updateIntent = useCallback(
     async (intent: string | null) => {
-      if (!generationIsDefined(generation, setAlertError, "updateIntent")) return;
+      if (!generationIsDefined(generation, errorAlert, "updateIntent")) return;
       if (intent === lastSavedIntent.current) return;
 
       try {
         await saveGenerationUpdates(generation.id, { raw_intent: intent });
         lastSavedIntent.current = intent;
       } catch (error) {
-        setAlertError({
+        void reportError(error, {
           title: `Error updating intent to DB`,
-          description: error instanceof Error ? error.message : "Error!",
         });
       }
 
       //
     },
-    [generation, saveGenerationUpdates],
+    [errorAlert, generation, reportError, saveGenerationUpdates],
   );
 
   const updateReview = useCallback(
     async (review: string | null) => {
-      if (!generationIsDefined(generation, setAlertError, "updateReview")) return;
+      if (!generationIsDefined(generation, errorAlert, "updateReview")) return;
       if (review === lastSavedReview.current) return;
 
       try {
         await saveGenerationUpdates(generation.id, { raw_review: review });
         lastSavedReview.current = review;
       } catch (error) {
-        setAlertError({
-          title: `Error updating review to DB`,
-          description: error instanceof Error ? error.message : "Error!",
+        void reportError(error, {
+          title: `Error updating review`,
         });
       }
       //
     },
-    [generation, saveGenerationUpdates],
+    [errorAlert, generation, reportError, saveGenerationUpdates],
   );
 
   const flush = useCallback(async () => {
@@ -251,12 +218,11 @@ export function useGenerationState() {
         lastSavedReview.current = draftReviewRef.current;
       }
     } catch (error) {
-      setAlertError({
+      void reportError(error, {
         title: `Error flushing changes to DB`,
-        description: error instanceof Error ? error.message : "Error!",
       });
     }
-  }, [generation, saveGenerationUpdates]);
+  }, [generation, reportError, saveGenerationUpdates]);
 
   const refresh = useCallback(
     async (skipToast = false) => {
@@ -268,18 +234,21 @@ export function useGenerationState() {
   );
 
   const getLLMContext = useCallback(async () => {
-    if (!generationIsDefined(generation, setAlertError, "updateReview")) return null;
+    if (!generationIsDefined(generation, errorAlert, "updateReview")) return null;
+    try {
+      // ensure any inflight/pending changes are persisted
+      await flush();
 
-    // ensure any inflight/pending changes are persisted
-    await flush();
+      // refetch generation from db
+      const gen = await fetchGeneration(generation.id, true);
 
-    // refetch generation from db
-    const gen = await fetchGeneration(generation.id, true);
-
-    // gen assumed defined: fetchGeneration only fails here if the server itself is down and server is local
-    return buildLlmContext(gen!);
+      // gen assumed defined: fetchGeneration only fails here if the server itself is down and server is local
+      return buildLlmContext(gen!);
+    } catch (error) {
+      void reportError(error);
+    }
     //
-  }, [fetchGeneration, flush, generation]);
+  }, [errorAlert, fetchGeneration, flush, generation, reportError]);
 
   const copyLLMContext = useCallback(async () => {
     const context = await getLLMContext();
@@ -292,13 +261,13 @@ export function useGenerationState() {
     async (payload: unknown) => {
       const validated = validateEnrichedReviewPayload(payload);
       if (!validated.valid) {
-        setAlertError({ title: `Validation Error`, description: validated.errors });
+        void errorAlert({ title: `Validation Error`, description: validated.errors });
         return;
       }
 
       const { generation_id, ...data } = validated.validated;
       if (generation_id !== generation?.id) {
-        const confirmed = await alert.confirm({
+        const confirmed = await confirmAlert({
           title: `Importing to a different generation`,
           description:
             `Current open generation (${generation?.id}) does not match ` +
@@ -310,13 +279,12 @@ export function useGenerationState() {
       try {
         await saveGenerationUpdates(generation_id, data);
       } catch (error) {
-        setAlertError({
+        void reportError(error, {
           title: `Error importing to DB`,
-          description: error instanceof Error ? error.message : "Error!",
         });
       }
     },
-    [alert, generation?.id, saveGenerationUpdates],
+    [confirmAlert, errorAlert, generation?.id, reportError, saveGenerationUpdates],
   );
 
   const getAllGenerationsForShot = useCallback(async () => {
@@ -326,10 +294,9 @@ export function useGenerationState() {
       // this returns too big a response, optimize
       return await listShotGenerations(shotId);
     } catch (error) {
-      const msg = getApiErrorMessage(error);
-      toast.error(`Error fetching shot attempts: ${msg}`);
+      void reportError(error, { surface: "toast", title: `Error fetching shot attempts` });
     }
-  }, [generation?.shot_id]);
+  }, [generation?.shot_id, reportError]);
 
   const navigateToGeneration = useCallback(
     async (genId: number) => {
@@ -353,7 +320,7 @@ export function useGenerationState() {
   return {
     generation,
     fetchGeneration,
-    alertError,
+    //alertError, // state var
     shot: { associateShotIdWithGeneration, detachShotFromGeneration },
     manualReview: {
       pullIntentFromLastAttempt,

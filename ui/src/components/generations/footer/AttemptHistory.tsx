@@ -6,6 +6,7 @@ import type { GenerationDetailResponse } from "@/types";
 
 import { Button } from "@/components/ui/button";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
+import { formatDate } from "@/lib/date-fmt";
 import { cn } from "@/lib/utils";
 
 export default function AttemptHistory({
@@ -55,14 +56,7 @@ export default function AttemptHistory({
     const output = gen.generation_assets.find((o) => o.assoc_type === "output");
     if (!output) return null;
     const ts = new Date(output.asset.file_timestamp);
-    const formattedDate = new Intl.DateTimeFormat("en-GB", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: false,
-    }).format(ts);
+    const formattedDate = formatDate(ts);
     return (
       <div className="flex gap-2">
         <span className="">{output.asset.file_name}</span>

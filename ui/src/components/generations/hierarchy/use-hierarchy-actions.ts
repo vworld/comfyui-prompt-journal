@@ -1,7 +1,7 @@
 import { useCallback, useState } from "react";
 import { toast } from "sonner";
 
-import { DEFAULT_PROJECT_TYPE, PROJECT_TYPE_HINTS, SEARCH_RESULT_LIMIT } from "./constants";
+import { DEFAULT_PROJECT_TYPE, SEARCH_RESULT_LIMIT } from "./constants";
 
 import type {
   FieldValidationResult,
@@ -27,6 +27,7 @@ import {
   getNextClipNumber,
   getNextSceneNumber,
   getNextShotNumber,
+  getProjectTypes,
   searchClip,
   searchProjects,
   searchScenes,
@@ -78,7 +79,7 @@ function requireParentId(state: HierarchyState, level: HierarchyLevel): number {
  * Typed structurally rather than importing DuplicateValidationResponse,
  * which wasn't confirmed as an exported type.
  */
-function toValidationResult(
+export function toValidationResult(
   response: { is_unique: boolean; duplicate: HierarchyItem | null },
   levelLabel: string,
   value: string,
@@ -132,11 +133,10 @@ export function useHierarchyActions(
 
   // Static list today; swap for a real "types used so far" endpoint later
   // by changing only this function.
-  const searchProjectTypes = useCallback((query: string) => {
+  const searchProjectTypes = useCallback(async (query: string) => {
     const normalized = query.toLowerCase();
-    return Promise.resolve(
-      PROJECT_TYPE_HINTS.filter((hint) => hint.toLowerCase().includes(normalized)),
-    );
+    const projectTypeOptions = await getProjectTypes();
+    return projectTypeOptions.filter((hint) => hint.toLowerCase().includes(normalized));
   }, []);
 
   // --- Create -------------------------------------------------------------

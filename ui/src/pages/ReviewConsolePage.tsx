@@ -7,5 +7,9 @@ export default function ReviewConsolePage() {
   const params = useParams();
   const generationId = Number(params.generationId ?? "0");
   if (generationId === 0 || Number.isNaN(generationId)) return <NoUnreviewedGenerationFound />;
-  return <ReviewConsole key={generationId} generationId={generationId} />;
+  return (
+    <div className="m-2">
+      <ReviewConsole key={generationId} generationId={generationId} />
+    </div>
+  );
 }

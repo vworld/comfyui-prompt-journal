@@ -198,7 +198,6 @@
   --max-width-console: var(--max-width-console);
   --color-gutter: var(--gutter);
   --color-workspace: var(--workspace);
-  
 }
 
 @layer base {

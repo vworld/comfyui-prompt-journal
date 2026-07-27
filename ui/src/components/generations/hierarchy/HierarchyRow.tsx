@@ -3,7 +3,7 @@ import { Lock, type LucideIcon, Plus } from "lucide-react";
 import type { HierarchyLevel } from "./types";
 import type { Key } from "react";
 
-import { SearchCombobox } from "@/components/SearchCombobox";
+import { SearchCombobox } from "@/components/shared/SearchCombobox";
 import { Button } from "@/components/ui/button";
 
 export interface HierarchyRowProps<T> {

@@ -1,9 +1,9 @@
-import { formatDistanceToNow } from "date-fns";
 import { useEffect, useRef, useState } from "react";
 
 import type { CurrentStatsResponse } from "@/types";
 
 import { getStats } from "@/api/stats";
+import { elapsedToNow } from "@/lib/date-fmt";
 import { cn } from "@/lib/utils";
 
 export default function StatsTable({
@@ -21,7 +21,7 @@ export default function StatsTable({
     const res = await getStats();
     const now = new Date();
     setStats(res);
-    setTimeElapsed(formatDistanceToNow(now));
+    setTimeElapsed(elapsedToNow(now));
     setLoading(false);
     updatedAt.current = now;
   }
@@ -35,7 +35,7 @@ export default function StatsTable({
     const timer = setInterval(() => {
       const lastUpdated = updatedAt.current;
       if (lastUpdated) {
-        const str = formatDistanceToNow(lastUpdated);
+        const str = elapsedToNow(lastUpdated);
         setTimeElapsed(str);
       }
     }, 10_000);

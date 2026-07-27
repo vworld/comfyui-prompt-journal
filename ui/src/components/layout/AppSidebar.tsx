@@ -1,4 +1,4 @@
-import { BookText, type LucideIcon, SquareStar } from "lucide-react";
+import { BookText, FolderTree, type LucideIcon, SquareStar } from "lucide-react";
 
 import logo from "@/assets/logo.svg";
 import { NavMain } from "@/components/layout/NavMain";
@@ -23,7 +23,7 @@ export interface MenuData {
 const menuData: MenuData = {
   navItem: [
     { title: "Review Console", url: "/", icon: SquareStar },
-    { title: "Browse Generations", url: "/browse-generation", icon: SquareStar },
+    { title: "Explorer", url: "/explorer", icon: FolderTree },
   ],
   recentItems: {
     title: "Recent Projects",

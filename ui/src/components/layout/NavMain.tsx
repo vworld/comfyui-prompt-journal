@@ -21,14 +21,14 @@ export function NavMain({ items }: Readonly<{ items: MenuItems[] }>) {
           <SidebarMenu>
             {items.map((subItem) => (
               <SidebarMenuItem key={subItem.title}>
-                <SidebarMenuButton isActive={pathname === subItem.url} tooltip={subItem.title}>
-                  <NavLink to={subItem.url}>
+                <NavLink to={subItem.url}>
+                  <SidebarMenuButton isActive={pathname === subItem.url} tooltip={subItem.title}>
                     <span className="flex gap-2">
                       {subItem.icon && <subItem.icon />}
                       <span>{subItem.title}</span>
                     </span>
-                  </NavLink>
-                </SidebarMenuButton>
+                  </SidebarMenuButton>
+                </NavLink>
               </SidebarMenuItem>
             ))}
           </SidebarMenu>

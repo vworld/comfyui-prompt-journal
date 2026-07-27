@@ -21,7 +21,7 @@ export function ReviewConsole({ generationId }: Readonly<{ generationId: number 
 
   if (!generation) return null; // <NoUnreviewedGenerationFound />;
   return (
-    <div className={cn("flex flex-col grow m-2 mb-0 gap-3.5")}>
+    <div className={cn("flex flex-col grow mb-0 gap-3.5")}>
       <IdentityStrip generation={generation} generationShotState={state.shot} />
 
       <div

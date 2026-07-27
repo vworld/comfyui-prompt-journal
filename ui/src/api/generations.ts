@@ -5,6 +5,8 @@ import type {
   GenerationManualReviewUpdateRequest,
   GenerationSummaryResponse,
   GenerationUpdateRequest,
+  GenerationWithAssetsResponse,
+  PaginatedResponse,
   RecreateAssetFromArchiveResponse,
 } from "@/types";
 
@@ -27,8 +29,27 @@ export function uploadGeneration(file: File): Promise<GenerationDetailResponse> 
   });
 }
 
-export function getGeneration(id: number): Promise<GenerationDetailResponse> {
-  return request<"getGenerationById">(`/api/generations/${id}`);
+export function getGeneration(
+  id: number,
+  abortSignal?: AbortSignal,
+): Promise<GenerationDetailResponse> {
+  return request<"getGenerationById">(`/api/generations/${id}`, { signal: abortSignal });
+}
+
+export function getGenerations(
+  withShot: boolean,
+  offset = 0,
+  limit = 20,
+  order = "asc",
+  signal?: AbortSignal,
+): Promise<PaginatedResponse<GenerationWithAssetsResponse>> {
+  const params = new URLSearchParams({
+    with_shot: String(withShot),
+    offset: String(offset),
+    limit: String(limit),
+    order,
+  });
+  return request<"listGenerations">(`/api/generations?${params.toString()}`, { signal });
 }
 
 export function getLastUnreviewedGeneration(curGenId?: number | null) {

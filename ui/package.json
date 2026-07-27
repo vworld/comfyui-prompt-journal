@@ -9,7 +9,8 @@
     "lint": "eslint .",
     "lint:i": "eslint-interactive src",
     "preview": "vite preview",
-    "ui:unused": "node scripts/unused-ui-components.mjs"
+    "ui:unused": "node scripts/unused-ui-components.mjs",
+    "test": "vitest"
   },
   "dependencies": {
     "@base-ui/react": "^1.6.0",
@@ -23,6 +24,7 @@
     "@tauri-apps/plugin-dialog": "~2.7.1",
     "@tauri-apps/plugin-fs": "~2.5.1",
     "@tauri-apps/plugin-opener": "~2.5.4",
+    "@use-gesture/react": "^10.3.1",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
@@ -47,6 +49,8 @@
     "@dword-design/eslint-plugin-import-alias": "^8.1.8",
     "@eslint/js": "^10.0.1",
     "@tauri-apps/cli": "^2.11.4",
+    "@testing-library/dom": "^10.4.1",
+    "@testing-library/react": "^16.3.2",
     "@types/node": "^24.13.2",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
@@ -64,11 +68,13 @@
     "eslint-plugin-sonarjs": "^4.1.0",
     "eslint-plugin-unicorn": "^71.1.0",
     "globals": "^17.6.0",
+    "jsdom": "^29.1.1",
     "knip": "^6.26.0",
     "prettier": "^3.9.4",
     "shadcn": "^4.13.0",
     "typescript": "~6.0.2",
     "typescript-eslint": "^8.61.0",
-    "vite": "^8.1.0"
+    "vite": "^8.1.0",
+    "vitest": "^4.1.10"
   }
 }

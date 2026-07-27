@@ -21,7 +21,6 @@ export function NavHistoryProvider({ children }: Readonly<{ children: ReactNode 
     }
 
     const action = scope.current;
-    console.log("action_", action);
     switch (action) {
       case "back": {
         if (current.current) future.current.push(current.current);

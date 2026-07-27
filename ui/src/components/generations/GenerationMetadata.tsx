@@ -11,9 +11,10 @@ import { Button } from "@/components/ui/button";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAlert } from "@/context/AlertContext";
+import { formatDate } from "@/lib/date-fmt";
 import { revealAssetInDir } from "@/lib/reveal-file";
 import { UnexpectedError } from "@/lib/unexpected-error";
-import { cn, formatBytes, formatDate } from "@/lib/utils";
+import { cn, formatBytes } from "@/lib/utils";
 
 export default function GenerationMetadata({
   generation,
@@ -252,8 +253,7 @@ function RevealButton({
     e.preventDefault();
     // eslint-disable-next-line unicorn/prefer-await
     revealAssetInDir(asset, alertDialog).catch((error) => {
-      console.error(error);
-      alert(error);
+      void alertDialog.reportError(error);
     });
   };
 

@@ -142,7 +142,6 @@ export function JsonImportPanel<T = unknown>({
 
           <div className="min-h-6 text-sm">
             {text.trim() ? (
-              // eslint-disable-next-line sonarjs/no-nested-conditional
               validation.valid ? (
                 <div className="flex items-center gap-2 text-green-600">
                   <CheckCircle2 className="size-4" />

@@ -9,10 +9,12 @@ import type {
   GenerationManualReviewUpdateRequest,
   GenerationSummaryResponse,
   GenerationUpdateRequest,
+  GenerationWithAssetsResponse,
   NextAvailableNumberResponse,
   PaginatedResponse,
   ProjectCreateRequest,
   ProjectNameValidationResponse,
+  ProjectPathResponse,
   ProjectResponse,
   ProjectUpdateRequest,
   RecreateAssetFromArchiveResponse,
@@ -66,6 +68,10 @@ export interface APIContract {
 
   validateProjectName: {
     response: ProjectNameValidationResponse;
+  };
+
+  findPathToProjectId: {
+    response: ProjectPathResponse;
   };
 
   validateSceneName: {
@@ -210,7 +216,7 @@ export interface APIContract {
     response: number[];
   };
   listGenerations: {
-    response: PaginatedResponse<GenerationSummaryResponse>;
+    response: PaginatedResponse<GenerationWithAssetsResponse>;
   };
 
   getGenerationById: {

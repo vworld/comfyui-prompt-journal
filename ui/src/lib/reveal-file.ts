@@ -27,7 +27,7 @@ export async function getFileDir(file_path: string) {
 
 export async function revealAssetInDir(
   asset: Pick<AssetResponse, "orig_file_path" | "id" | "file_name">,
-  alertDialog: Pick<AlertContextValue, "confirm" | "error">,
+  alertDialog: Pick<AlertContextValue, "confirm" | "error" | "reportError">,
 ) {
   try {
     if (!asset.orig_file_path)
@@ -59,11 +59,8 @@ export async function revealAssetInDir(
     await revealFileInDir(response.recreated_path);
     toast.success("Successfully opened folder");
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-
-    await alertDialog.error({
+    await alertDialog.reportError(error, {
       title: "Reveal in Folder Failed",
-      description: message,
     });
   }
 }

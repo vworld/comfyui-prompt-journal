@@ -1,22 +1,29 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
+import { toast } from "sonner";
 
-import type { AlertConfig, AlertContextValue, AlertOptions, AlertVariant } from "@/types/alert";
+import type {
+  AlertConfig,
+  AlertContextValue,
+  AlertOptions,
+  AlertVariant,
+  ReportErrorOptions,
+} from "@/types/alert";
 
-import { AppAlertDialog } from "@/components/AppAlertDialog";
+import { ApiError } from "@/api/client";
+import { AppAlertDialog } from "@/components/shared/AppAlertDialog";
 import { AlertContext } from "@/context/AlertContext";
 
 export function AlertProvider({ children }: Readonly<{ children: React.ReactNode }>) {
   const [currentAlert, setCurrentAlert] = useState<AlertConfig | null>(null);
   const queueRef = useRef<AlertConfig[]>([]);
 
-  const processQueue = useCallback(() => {
-    if (queueRef.current.length === 0 || currentAlert) {
-      return;
-    }
+  const ensureAlertVisible = useCallback(() => {
+    setCurrentAlert((prev) => prev ?? queueRef.current.shift() ?? null);
+  }, []);
 
-    const next = queueRef.current.shift()!;
-    setCurrentAlert(next);
-  }, [currentAlert]);
+  const advance = useCallback(() => {
+    setCurrentAlert(() => queueRef.current.shift() ?? null);
+  }, []);
 
   const showAlert = useCallback(
     (variant: AlertVariant, options: AlertOptions): Promise<void> => {
@@ -25,16 +32,15 @@ export function AlertProvider({ children }: Readonly<{ children: React.ReactNode
           variant,
           options,
           resolve: () => {
-            setCurrentAlert(null);
             resolve();
-            processQueue();
+            advance();
           },
         };
         queueRef.current.push(alertConfig);
-        processQueue();
+        ensureAlertVisible();
       });
     },
-    [processQueue],
+    [advance, ensureAlertVisible],
   );
 
   const showConfirm = useCallback(
@@ -44,38 +50,84 @@ export function AlertProvider({ children }: Readonly<{ children: React.ReactNode
           variant: "confirm",
           options,
           resolve: (value: boolean) => {
-            setCurrentAlert(null);
             resolve(value);
-            processQueue();
+            advance();
           },
         };
         queueRef.current.push(alertConfig);
-        processQueue();
+        ensureAlertVisible();
       });
     },
-    [processQueue],
+    [advance, ensureAlertVisible],
   );
 
-  const value: AlertContextValue = {
-    alert: (options) => showAlert("info", options),
-    info: (options) => showAlert("info", options),
-    success: (options) => showAlert("success", options),
-    warning: (options) => showAlert("warning", options),
-    error: (options) => showAlert("error", options),
-    confirm: showConfirm,
-  };
+  const alert = useCallback((options: AlertOptions) => showAlert("info", options), [showAlert]);
+
+  const success = useCallback(
+    (options: AlertOptions) => showAlert("success", options),
+    [showAlert],
+  );
+  const warning = useCallback(
+    (options: AlertOptions) => showAlert("warning", options),
+    [showAlert],
+  );
+
+  const error = useCallback((options: AlertOptions) => showAlert("error", options), [showAlert]);
+
+  const reportError = useCallback(
+    async (error: unknown, options?: ReportErrorOptions): Promise<void> => {
+      const { surface = "dialog", ignoreAbort = true, title, description } = options ?? {};
+
+      if (!error || surface === "none") return;
+
+      let errMsg: string | undefined;
+
+      if (error instanceof DOMException && error.name === "AbortError") {
+        if (ignoreAbort) return;
+        errMsg = `${error.message}${"reason" in error && typeof error.reason === "string" ? " " + error.reason : ""}`;
+      } else if (error instanceof ApiError) {
+        errMsg = `${error.message} (Status: ${error.status})`;
+      } else if (error instanceof Error) {
+        errMsg = error.message;
+      } else if (typeof error === "string") {
+        errMsg = error;
+      }
+
+      errMsg ??= "Something went wrong";
+
+      const errTitle = title ?? errMsg;
+      const errDescription = description ?? (title ? errMsg : undefined);
+
+      if (surface === "toast") {
+        toast.error(errTitle, { description: errDescription });
+        return;
+      }
+
+      return showAlert("error", {
+        title: errTitle,
+        description: errDescription,
+      });
+    },
+    [showAlert],
+  );
+
+  const value: AlertContextValue = useMemo(
+    () => ({
+      alert,
+      info: alert,
+      success,
+      warning,
+      error,
+      reportError,
+      confirm: showConfirm,
+    }),
+    [alert, error, reportError, showConfirm, success, warning],
+  );
 
   return (
     <AlertContext value={value}>
       {children}
-      <AppAlertDialog
-        alert={currentAlert}
-        onResolve={(value) => {
-          currentAlert?.resolve(value);
-          setCurrentAlert(null);
-          processQueue();
-        }}
-      />
+      <AppAlertDialog currentAlert={currentAlert} />
     </AlertContext>
   );
 }

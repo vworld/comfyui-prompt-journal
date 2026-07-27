@@ -29,3 +29,12 @@ export interface ProjectResponse {
 }
 
 export type ProjectNameValidationResponse = DuplicateValidationResponse<ProjectResponse>;
+
+export interface PathItem {
+  kind: "project" | "scene" | "clip" | "shot" | "generation";
+  id: number;
+}
+
+export interface ProjectPathResponse {
+  path: PathItem[];
+}

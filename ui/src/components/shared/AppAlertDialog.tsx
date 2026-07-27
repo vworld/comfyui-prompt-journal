@@ -14,8 +14,7 @@ import {
 } from "@/components/ui/alert-dialog";
 
 interface AppAlertDialogProps {
-  alert: AlertConfig | null;
-  onResolve: (value: boolean) => void;
+  currentAlert: AlertConfig | null;
 }
 
 const variantConfig = {
@@ -51,10 +50,14 @@ const variantConfig = {
   },
 };
 
-export function AppAlertDialog({ alert, onResolve }: Readonly<AppAlertDialogProps>) {
-  if (!alert) return null;
+export function AppAlertDialog({ currentAlert }: Readonly<AppAlertDialogProps>) {
+  if (!currentAlert) return null;
 
-  const { variant, options } = alert;
+  function handleClose(confirmed: boolean) {
+    currentAlert?.resolve(confirmed);
+  }
+
+  const { variant, options } = currentAlert;
   const config = variantConfig[variant];
   const Icon = config.icon;
 
@@ -89,14 +92,14 @@ export function AppAlertDialog({ alert, onResolve }: Readonly<AppAlertDialogProp
           {isConfirm && (
             <AlertDialogCancel
               variant={options.cancelButton?.variant ?? "outline"}
-              onClick={() => onResolve(false)}
+              onClick={() => handleClose(false)}
             >
               {cancelText}
             </AlertDialogCancel>
           )}
           <AlertDialogAction
             variant={options.actionButton?.variant ?? config.actionVariant}
-            onClick={() => onResolve(true)}
+            onClick={() => handleClose(true)}
           >
             {confirmText}
           </AlertDialogAction>

@@ -10,7 +10,7 @@ export default function IndexPage() {
   const [lastUnreviewedGenId, setLastUnreviewedGenId] = useState<number>(0);
   const [loading, setLoading] = useState<boolean>(true);
   const navigate = useNavigate();
-  const alert = useAlert();
+  const { reportError } = useAlert();
   useEffect(() => {
     async function getLastUploaded() {
       try {
@@ -22,8 +22,8 @@ export default function IndexPage() {
         }
       } catch (error) {
         logger.api({ loc: "getLastUploaded", error });
-        void alert.error({
-          title: (error as Error).message ?? `Error fetching unreviewed generation.`,
+        void reportError(error, {
+          title: `Error fetching unreviewed generation.`,
         });
       } finally {
         setLoading(false);
@@ -31,7 +31,7 @@ export default function IndexPage() {
     }
 
     void getLastUploaded();
-  }, [alert, navigate]);
+  }, [navigate, reportError]);
 
   return (
     <>

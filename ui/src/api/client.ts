@@ -114,6 +114,10 @@ export async function request<T extends keyof APIContract>(
       path,
       request: { options, requestBody, headers },
     });
+    if (networkError instanceof DOMException && networkError.name === "AbortError") {
+      throw networkError;
+    }
+
     throw new ApiError(
       `Could not reach the API at ${BASE_URL}. Is the backend running?`,
       0,

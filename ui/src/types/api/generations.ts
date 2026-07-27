@@ -47,6 +47,11 @@ export interface GenerationSummaryResponse {
   added_on: number;
 }
 
+export interface GenerationWithAssetsResponse extends GenerationSummaryResponse {
+  output_asset: AssetResponse | null;
+  input_assets: AssetResponse[];
+}
+
 export interface GenerationDetailResponse extends GenerationSummaryResponse {
   shot: ShotHierarchicalResponse | null;
   generation_assets: GenerationAssetResponse[];

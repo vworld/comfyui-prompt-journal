@@ -1,6 +1,6 @@
 import { open } from "@tauri-apps/plugin-dialog";
 
-import StatsTable from "@/components/StatsTable";
+import StatsTable from "@/components/shared/StatsTable";
 import { Button } from "@/components/ui/button";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import { useSidebar } from "@/components/ui/sidebar";

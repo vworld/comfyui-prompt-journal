@@ -1,10 +1,10 @@
-import { Copy, FileQuestion, Hash, Headphones, Image, Video } from "lucide-react";
+import { Copy, Hash } from "lucide-react";
 
 import type { UseGenerationState } from "@/components/generations/use-generation-state";
-import type { GenerationAssetResponse, GenerationDetailResponse } from "@/types";
+import type { GenerationDetailResponse } from "@/types";
 
-import { mediaKindFromMime } from "@/api/transforms";
 import ShotSelector from "@/components/generations/shot-selector/ShotSelector";
+import { AssetIcon } from "@/components/shared/AssetIcon";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import { writeToClipboard } from "@/lib/clipboard";
 import { UnexpectedError } from "@/lib/unexpected-error";
@@ -31,7 +31,7 @@ export default function IdentityStrip({
       )}
     >
       <div className="flex gap-2 items-center">
-        <AssetIcon outputAsset={output} />
+        <AssetIcon outputAsset={output.asset} />
 
         <ShotSelector
           generationId={generation.id}
@@ -77,19 +77,4 @@ function SeedLabel({ seed }: Readonly<{ seed: number | null }>) {
       </HoverCardContent>
     </HoverCard>
   );
-}
-
-function AssetIcon({
-  outputAsset,
-  size,
-}: Readonly<{ outputAsset: GenerationAssetResponse; size?: number }>) {
-  const s = size ?? 16;
-  const assetType = mediaKindFromMime(outputAsset.asset.mime_type);
-  if (assetType === "image") return <Image size={s} />;
-
-  if (assetType === "video") return <Video size={s} />;
-
-  if (assetType === "audio") return <Headphones size={s} />;
-
-  return <FileQuestion size={s} />;
 }

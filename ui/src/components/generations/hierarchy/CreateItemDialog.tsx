@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import type { CreateItemField, FieldValidationResult, HierarchyLevel } from "./types";
 import type { ReactNode } from "react";
 
-import { SearchCombobox } from "@/components/SearchCombobox";
+import { SearchCombobox } from "@/components/shared/SearchCombobox";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -324,7 +324,7 @@ function NumberField({
   validationState?: FieldValidationState;
   onBlur: () => void;
 }>) {
-  const alertDialog = useAlert();
+  const { confirm: confirmAlert } = useAlert();
   const [maxNumber, setMaxNumber] = useState<number | null>(null);
   const [isFetchingNext, setIsFetchingNext] = useState(false);
   const id = `create-item-${field.key}`;
@@ -333,7 +333,7 @@ function NumberField({
     if (!field.getNextNumber) return;
 
     if (value.trim()) {
-      const confirmed = await alertDialog.confirm({
+      const confirmed = await confirmAlert({
         title: "Replace current number?",
         description: `This will replace "${value}" with the next available number.`,
         confirmText: "Replace",

@@ -15,14 +15,3 @@ export function formatBytes(bytes: number, decimals = 1): string {
 
   return `${Number(value.toFixed(decimals))} ${units[i]}`;
 }
-
-export function formatDate(timestamp: number): string {
-  const date = new Date(timestamp);
-  const day = String(date.getDate()).padStart(2, "0");
-  const month = date.toLocaleString("en-US", { month: "short" });
-  const year = String(date.getFullYear()).slice(-2);
-  const hours = String(date.getHours()).padStart(2, "0");
-  const minutes = String(date.getMinutes()).padStart(2, "0");
-  const seconds = String(date.getSeconds()).padStart(2, "0");
-  return `${day}-${month}-${year} ${hours}:${minutes}:${seconds}`;
-}
